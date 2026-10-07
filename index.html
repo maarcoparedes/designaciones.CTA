@@ -85,6 +85,19 @@ header.top small{opacity:.7;font-size:12px}
 .chip.c{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
 .chip.f{background:var(--surface-2);color:var(--ink-2)}
 .chip.old{background:var(--red);color:#fff}
+.rol{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;border-radius:5px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+.rol.p{background:var(--pitch-2);color:#fff}
+.rol.a{background:transparent;color:var(--pitch-2);box-shadow:inset 0 0 0 1.5px var(--pitch-2)}
+.rol.c{background:var(--surface-2);color:var(--ink-2)}
+.split{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--surface-2);margin:12px 0 4px}
+.split i{display:block;height:100%}
+.split i.p{background:var(--pitch-2)}
+.split i.a{background:var(--card)}
+.fn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fn .k{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.fn .k::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--pitch-2)}
+.fn .k.a::before{background:var(--card)}
+.fn .num{font-size:26px;font-weight:700;line-height:1.15}
 .empty{text-align:center;color:var(--ink-2);padding:40px 10px}
 
 /* Cobros */
@@ -115,6 +128,12 @@ label.f input,label.f select,label.f textarea{display:block;width:100%;margin-to
 .bar .track i{display:block;height:100%}
 .bar .track i.c{background:var(--pitch-2)}
 .bar .track i.p{background:var(--card)}
+.bar .track i.a{background:var(--ink-2);opacity:.45}
+.kmt td{text-align:right}
+.kmt td:first-child{text-align:left}
+.kmt td.hl{color:var(--pitch-2);font-weight:700}
+.kmt tr:first-child td{color:var(--ink-2);font-size:12px;border-top:0}
+.fn .k.c::before{background:var(--ink-2)}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin-bottom:10px}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--pitch-2)}
 .legend span.p::before{background:var(--card)}
@@ -172,13 +191,22 @@ a{color:var(--pitch-2)}
 
 <script>
 /* ============================ Estado ============================ */
+const PERFIL_DEF = { nombre: '', origen: 'Jaén', provincia: '23', combustible: 'diesel', consumo: 6.5, otrosKm: 0, tarifaKm: 0.26, kmUrbano: 4.5, avisoDias: 30 };
+const PROVINCIAS = { '04': 'Almería', '11': 'Cádiz', '14': 'Córdoba', '18': 'Granada', '21': 'Huelva', '23': 'Jaén', '29': 'Málaga', '41': 'Sevilla',
+  '01': 'Álava', '02': 'Albacete', '03': 'Alicante', '05': 'Ávila', '06': 'Badajoz', '07': 'Illes Balears', '08': 'Barcelona', '09': 'Burgos', '10': 'Cáceres',
+  '12': 'Castellón', '13': 'Ciudad Real', '15': 'A Coruña', '16': 'Cuenca', '17': 'Girona', '19': 'Guadalajara', '20': 'Gipuzkoa', '22': 'Huesca', '24': 'León',
+  '25': 'Lleida', '26': 'La Rioja', '27': 'Lugo', '28': 'Madrid', '30': 'Murcia', '31': 'Navarra', '32': 'Ourense', '33': 'Asturias', '34': 'Palencia',
+  '35': 'Las Palmas', '36': 'Pontevedra', '37': 'Salamanca', '38': 'S.C. de Tenerife', '39': 'Cantabria', '40': 'Segovia', '42': 'Soria', '43': 'Tarragona',
+  '44': 'Teruel', '45': 'Toledo', '46': 'Valencia', '47': 'Valladolid', '48': 'Bizkaia', '49': 'Zamora', '50': 'Zaragoza', '51': 'Ceuta', '52': 'Melilla' };
+const ANDALUCIA = ['04', '11', '14', '18', '21', '23', '29', '41'];
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const S = {
+  // (perfil, distancias, combustible e IPC llegan con los datos)
   cfg: LS.get('cfg', { url: '', token: '', demo: false, avisoDias: 30 }),
-  data: LS.get('data', { partidos: [], ingresos: [] }),
+  data: Object.assign({ partidos: [], ingresos: [], perfil: PERFIL_DEF, distancias: {}, combustible: {}, ipc: {} }, LS.get('data', {})),
   tab: 'partidos', vista: 'proximos', sel: new Set(), filtroTemp: null,
 };
 
@@ -195,7 +223,12 @@ const MESL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'A
 const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const temporada = f => { const d = parseD(f); const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; return y + '/' + String(y + 1).slice(2); };
 const titulo = s => String(s || '').toLowerCase().replace(/(^|[\s(."-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()).replace(/\bC\.d\./gi, 'C.D.').replace(/\b(Cd|Ud|Cf|Ad|Sd)\b/g, x => x.toUpperCase());
+const perfil = () => Object.assign({}, PERFIL_DEF, S.data.perfil || {});
+const aviso = () => n(perfil().avisoDias) || 30;
 const total = p => n(p.total) || (n(p.importe) + n(p.manutencion) + n(p.km));
+const rolDe = p => { const f = String(p.funcion || '').toUpperCase(); return f.includes('ASIST') ? 'a' : f.includes('CUARTO') ? 'c' : 'p'; };
+const ROL_TXT = { p: 'Principal', a: 'Asistente', c: '4º árbitro' };
+const rolChip = p => { const r = rolDe(p); return `<span class="rol ${r}">${ROL_TXT[r]}</span>`; };
 
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600); }
 
@@ -215,7 +248,8 @@ async function api(action, body) {
 }
 function guardar(data) {
   if (!data) return;
-  S.data = { partidos: data.partidos || [], ingresos: data.ingresos || [] };
+  S.data = { partidos: data.partidos || [], ingresos: data.ingresos || [], perfil: Object.assign({}, PERFIL_DEF, data.perfil || {}),
+    distancias: data.distancias || {}, combustible: data.combustible || {}, ipc: data.ipc || {} };
   LS.set('data', S.data);
   render();
 }
@@ -236,28 +270,42 @@ async function accion(action, body, ok) {
 /* ============================ Modo demo ============================ */
 function demoDatos() {
   const add = (dd) => { const d = new Date(); d.setDate(d.getDate() + dd); return d.toISOString().slice(0, 10); };
-  const P = (id, f, h, comp, loc, vis, campo, local, imp, km, est, fc) => ({ id, funcion: 'ARBITRO', fecha: f, hora: h, competicion: comp, categoria: '', grupo: 'Grupo Único', local: loc, visitante: vis, campo, direccion: '', localidad: local, importe: imp, manutencion: '0.00', km, total: (n(imp) + n(km)).toFixed(2), estado: est, fechaCobro: fc || '', ingresoId: fc ? 'I1' : '', notas: '', origen: 'gmail' });
-  return {
+  const P = (id, f, h, comp, loc, vis, campo, local, imp, km, est, fc) => ({ id, funcion: 'ARBITRO', fecha: f, hora: h, competicion: comp, categoria: '', grupo: 'Grupo Único', local: loc, visitante: vis, campo, direccion: '', localidad: local, importe: imp, manutencion: '0.00', km, total: (n(imp) + n(km)).toFixed(2), estado: est, fechaCobro: fc || '', ingresoId: fc ? 'I1' : '', notas: '', origen: 'gmail', kmRfaf: km, kmModo: '' });
+  const asis = (p) => Object.assign(p, { funcion: 'ASISTENTE' });
+  const demo = {
     partidos: [
       P('1978535', '2026-10-03', '12:00', '2ª Andaluza Alevín (Jaén)', 'CLUB DEPORTIVO JAEN 2021 "A"', 'MARTOS C.D. "A"', 'Jaén - ANTOÑETE', 'Jaén', '14.86', '4.50', 'pendiente'),
       P('1979102', add(4), '10:30', '1ª Andaluza Infantil (Jaén)', 'REAL JAEN C.F. "B"', 'C.D. TORREDONJIMENO', 'Jaén - LA SALOBREJA', 'Jaén', '19.40', '4.50', 'pendiente'),
-      P('1979240', add(5), '17:00', '2ª Andaluza Cadete (Jaén)', 'U.D. MANCHA REAL', 'C.D. VILLACARRILLO', 'Mancha Real - MUNICIPAL', 'Mancha Real', '21.10', '9.80', 'pendiente'),
+      asis(P('1979240', add(5), '17:00', '2ª Andaluza Cadete (Jaén)', 'U.D. MANCHA REAL', 'C.D. VILLACARRILLO', 'Mancha Real - MUNICIPAL', 'Mancha Real', '21.10', '9.80', 'pendiente')),
       P('1974410', '2026-09-27', '11:00', '2ª Andaluza Alevín (Jaén)', 'C.D. ATLETICO JAEN "A"', 'C.D. ALCAUDETE "A"', 'Jaén - LAS LAGUNILLAS', 'Jaén', '14.86', '4.50', 'pendiente'),
-      P('1971006', '2026-09-20', '16:30', '1ª Andaluza Infantil (Jaén)', 'C.D. TORREPEROGIL', 'LINARES DEPORTIVO "B"', 'Torreperogil - MUNICIPAL', 'Torreperogil', '19.40', '14.20', 'cobrado', '2026-10-01'),
+      asis(P('1971006', '2026-09-20', '16:30', '1ª Andaluza Infantil (Jaén)', 'C.D. TORREPEROGIL', 'LINARES DEPORTIVO "B"', 'Torreperogil - MUNICIPAL', 'Torreperogil', '19.40', '14.20', 'cobrado', '2026-10-01')),
       P('1969870', '2026-09-13', '12:00', '2ª Andaluza Alevín (Jaén)', 'C.D. JAEN F.S. "A"', 'C.D. BAILEN "A"', 'Jaén - ANTOÑETE', 'Jaén', '14.86', '4.50', 'cobrado', '2026-10-01'),
       P('1961233', '2026-08-30', '19:00', 'Torneo Pretemporada', 'C.D. MENGIBAR', 'C.D. VILCHES', 'Mengíbar - MUNICIPAL', 'Mengíbar', '18.00', '7.60', 'pendiente'),
+      P('1801001', '2025-11-15', '12:00', '2ª Andaluza Alevín (Jaén)', 'ATLETICO MANCHA REAL', 'C.D. JAEN F.S.', 'Mancha Real - MUNICIPAL', 'Mancha Real', '12.00', '9.80', 'cobrado', '2025-12-10'),
+      asis(P('1801002', '2025-11-22', '18:00', '1ª Andaluza Infantil (Jaén)', 'C.D. TORREPEROGIL', 'REAL JAEN C.F. "C"', 'Torreperogil - MUNICIPAL', 'Torreperogil', '11.49', '0.00', 'cobrado', '2025-12-10')),
+      P('1601001', '2024-11-16', '12:00', '2ª Andaluza Alevín (Jaén)', 'ATLETICO MANCHA REAL', 'C.D. BAILEN "A"', 'Mancha Real - MUNICIPAL', 'Mancha Real', '10.90', '9.80', 'cobrado', '2024-12-12'),
+      asis(P('1601002', '2024-11-23', '18:00', '1ª Andaluza Infantil (Jaén)', 'C.D. TORREPEROGIL', 'LINARES DEPORTIVO "B"', 'Torreperogil - MUNICIPAL', 'Torreperogil', '11.49', '0.00', 'cobrado', '2024-12-12')),
     ],
     ingresos: [{ id: 'I1', fecha: '2026-10-01', importe: '52.96', nota: 'Transferencia RFAF', partidos: '1971006,1969870' }],
+    perfil: Object.assign({}, PERFIL_DEF, { nombre: 'Demo', consumo: 7.2 }),
+    distancias: {},
+    combustible: { '2026-09-01': { diesel: 1.449, gasolina: 1.559 }, '2025-11-15': { diesel: 1.419, gasolina: 1.539 }, '2024-11-16': { diesel: 1.389, gasolina: 1.509 } },
+    ipc: (() => { const o = {}; for (let i = 0; i < 24; i++) { const d = new Date(2024, 8 + i, 1); o[d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')] = +(115 * Math.pow(1.0022, i)).toFixed(3); } return o; })(),
   };
+  const DD = { 'JAEN': [3.1, 5.4], 'MANCHAREAL': [16.8, 21.2], 'TORREPEROGIL': [49.5, 61.8], 'MENGIBAR': [19.2, 23.6] };
+  demo.partidos.forEach(p => { const d = DD[locN(p.localidad)]; if (d) demo.distancias[claveSitio(p)] = { recta: d[0], carretera: d[1] }; });
+  return demo;
 }
 let DEMO = null;
 function demoApi(action, b) {
-  DEMO = DEMO || LS.get('demoData', null) || demoDatos();
+  DEMO = DEMO || LS.get('demoData', null);
+  if (!DEMO || !DEMO.perfil) DEMO = demoDatos();
   const P = DEMO.partidos, find = id => P.find(p => p.id === String(id));
   if (action === 'update') { const p = find(b.id); Object.assign(p, b.campos); if (p.estado === 'pendiente') { p.fechaCobro = ''; p.ingresoId = ''; } }
   if (action === 'add') P.push(Object.assign({ id: 'M' + Date.now(), estado: 'pendiente', origen: 'manual' }, b.campos));
   if (action === 'delete') DEMO.partidos = P.filter(p => p.id !== String(b.id));
   if (action === 'cobro') { const id = 'I' + Date.now(); DEMO.ingresos.push({ id, fecha: b.fecha, importe: String(b.importe), nota: b.nota, partidos: b.ids.join(',') }); b.ids.forEach(i => Object.assign(find(i), { estado: 'cobrado', fechaCobro: b.fecha, ingresoId: id })); }
+  if (action === 'guardarPerfil') DEMO.perfil = Object.assign({}, DEMO.perfil || PERFIL_DEF, b.perfil);
   if (action === 'deleteIngreso') { DEMO.ingresos = DEMO.ingresos.filter(i => i.id !== b.id); P.forEach(p => { if (p.ingresoId === b.id) Object.assign(p, { estado: 'pendiente', fechaCobro: '', ingresoId: '' }); }); }
   LS.set('demoData', DEMO);
   return Promise.resolve(Object.assign(JSON.parse(JSON.stringify(DEMO)), action === 'sync' ? { nuevos: 0 } : {}));
@@ -318,11 +366,11 @@ function tarjetaPartido(p, hoy) {
   let chip;
   if (!jugado) chip = `<span class="chip f">${esc(p.hora || '')}</span>`;
   else if (p.estado === 'cobrado') chip = `<span class="chip c">Cobrado</span>`;
-  else { const ds = dias(p.fecha, hoy); chip = `<span class="chip ${ds > S.cfg.avisoDias ? 'old' : 'p'}">${ds} d</span>`; }
+  else { const ds = dias(p.fecha, hoy); chip = `<span class="chip ${ds > aviso() ? 'old' : 'p'}">${ds} d</span>`; }
   return `<button class="match" onclick="abrir('${esc(p.id)}')">
     <div class="date"><span>${DOW[d.getDay()]}</span><b>${d.getDate()}</b><span>${MES[d.getMonth()]}</span></div>
     <div class="teams"><div class="t">${esc(titulo(p.local))}</div><div class="t">${esc(titulo(p.visitante))}</div>
-      <div class="meta">${esc(p.competicion)} · ${esc(titulo(p.campo))}</div></div>
+      <div class="meta">${rolChip(p)}${esc(p.competicion)} · ${esc(titulo(p.campo))}</div></div>
     <div class="amt"><div class="num">${eur(total(p))}</div>${chip}</div></button>`;
 }
 
@@ -332,7 +380,7 @@ function vPartidos(D) {
     <div class="tile warn"><div class="lbl">Pendiente de cobro</div><div class="num">${eur(D.pendTotal)}</div><div class="sub">${D.pendientes.length} partido${D.pendientes.length === 1 ? '' : 's'}</div></div>
     <div class="tile"><div class="lbl">Cobrado ${D.tempAct}</div><div class="num">${eur(D.cobradoTemp)}</div><div class="sub">${D.P.filter(p => temporada(p.fecha) === D.tempAct && p.fecha < D.hoy).length} jugados</div></div>
     ${prox ? `<div class="tile full next" onclick="abrir('${esc(prox.id)}')" style="cursor:pointer"><div class="when"><span>${DOW[parseD(prox.fecha).getDay()]}</span><b>${parseD(prox.fecha).getDate()}</b><span>${MES[parseD(prox.fecha).getMonth()]}</span></div>
-      <div style="min-width:0"><div class="lbl" style="font-size:12px;color:var(--ink-2)">Próximo partido · ${esc(prox.hora)}${dias(D.hoy, prox.fecha) === 0 ? ' · HOY' : dias(D.hoy, prox.fecha) === 1 ? ' · mañana' : ''}</div>
+      <div style="min-width:0"><div class="lbl" style="font-size:12px;color:var(--ink-2)">${rolChip(prox)}Próximo partido · ${esc(prox.hora)}${dias(D.hoy, prox.fecha) === 0 ? ' · HOY' : dias(D.hoy, prox.fecha) === 1 ? ' · mañana' : ''}</div>
       <div style="font-weight:600">${esc(titulo(prox.local))} – ${esc(titulo(prox.visitante))}</div>
       <div class="sub" style="font-size:12px;color:var(--ink-2)">${esc(titulo(prox.campo))}</div></div></div>` : ''}
   </div>
@@ -368,7 +416,7 @@ function vCobros(D) {
       const ds = dias(p.fecha, D.hoy), on = S.sel.has(p.id);
       h += `<label class="pend ${on ? 'sel' : ''}" data-id="${esc(p.id)}" data-t="${total(p)}"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleSel('${esc(p.id)}',this.checked)">
         <div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(titulo(p.local))} – ${esc(titulo(p.visitante))}</div>
-        <div class="hint" style="margin:0">${parseD(p.fecha).getDate()} ${MES[parseD(p.fecha).getMonth()]} · <span class="chip ${ds > S.cfg.avisoDias ? 'old' : 'p'}">hace ${ds} d</span></div></div>
+        <div class="hint" style="margin:0">${rolChip(p)}${parseD(p.fecha).getDate()} ${MES[parseD(p.fecha).getMonth()]} · <span class="chip ${ds > aviso() ? 'old' : 'p'}">hace ${ds} d</span></div></div>
         <div class="num" style="font-size:19px;font-weight:700">${eur(total(p))}</div></label>`;
     });
   }
@@ -391,13 +439,14 @@ function vResumen(D) {
   const P = D.P.filter(p => temporada(p.fecha) === t && p.fecha < D.hoy);
   const ganado = P.reduce((s, p) => s + total(p), 0);
   const cobr = P.filter(p => p.estado === 'cobrado');
-  const esperas = cobr.filter(p => p.fechaCobro).map(p => dias(p.fecha, p.fechaCobro));
-  const media = esperas.length ? Math.round(esperas.reduce((a, b) => a + b, 0) / esperas.length) : null;
-  const km = P.reduce((s, p) => s + n(p.km), 0);
+  const K = analisisKm(P);
 
   const meses = {};
   P.forEach(p => { const k = p.fecha.slice(0, 7); meses[k] = meses[k] || { c: 0, p: 0, n: 0 }; meses[k].n++; meses[k][p.estado === 'cobrado' ? 'c' : 'p'] += total(p); });
   const max = Math.max(1, ...Object.values(meses).map(m => m.c + m.p));
+  const fn = { p: { n: 0, e: 0 }, a: { n: 0, e: 0 } };
+  P.forEach(p => { const r = rolDe(p) === 'a' ? 'a' : 'p'; fn[r].n++; fn[r].e += total(p); });
+  const fnTot = fn.p.e + fn.a.e || 1;
   const comps = {};
   P.forEach(p => { comps[p.competicion] = comps[p.competicion] || { n: 0, e: 0 }; comps[p.competicion].n++; comps[p.competicion].e += total(p); });
 
@@ -405,10 +454,19 @@ function vResumen(D) {
   <div class="score">
     <div class="tile"><div class="lbl">Generado</div><div class="num">${eur(ganado)}</div><div class="sub">${P.length} partidos</div></div>
     <div class="tile"><div class="lbl">Cobrado</div><div class="num">${eur(cobr.reduce((s, p) => s + total(p), 0))}</div><div class="sub">${cobr.length} partidos</div></div>
-    <div class="tile"><div class="lbl">Tarda en pagar</div><div class="num">${media == null ? '—' : media + ' días'}</div><div class="sub">media desde el partido</div></div>
-    <div class="tile"><div class="lbl">Kilometraje</div><div class="num">${eur(km)}</div><div class="sub">incluido en el total</div></div>
+    <div class="tile ${K.pct != null && K.pct < 95 ? 'warn' : ''}"><div class="lbl">Km que te pagan</div><div class="num">${K.pct == null ? '—' : K.pct + ' %'}</div><div class="sub">${K.pct == null ? (K.viajes ? 'calculando distancias…' : 'sin viajes con km') : 'de los km reales por carretera'}</div></div>
+    <div class="tile"><div class="lbl">Saldo del coche</div><div class="num" style="color:${K.saldo == null ? 'inherit' : K.saldo < 0 ? 'var(--red)' : 'var(--ok)'}">${K.saldo == null ? '—' : (K.saldo > 0 ? '+' : '') + eur(K.saldo)}</div><div class="sub">km cobrado − coste real</div></div>
   </div>`;
+  h += cajaKm(K);
   const ks = Object.keys(meses).sort();
+  if (P.length) {
+    const linea = (r, txt) => `<div><div class="k ${r}">${txt}</div><div class="num">${eur(fn[r].e)}</div>
+      <div class="hint" style="margin:0">${fn[r].n} partido${fn[r].n === 1 ? '' : 's'}${fn[r].n ? ' · ' + eur(fn[r].e / fn[r].n) + ' de media' : ''}</div></div>`;
+    h += `<div class="box"><h3>Principal y asistente</h3>
+      <div class="split"><i class="p" style="width:${fn.p.e / fnTot * 100}%"></i><i class="a" style="width:${fn.a.e / fnTot * 100}%"></i></div>
+      <div class="hint" style="margin:0 0 12px">${Math.round(fn.p.e / fnTot * 100)}% como principal · ${Math.round(fn.a.e / fnTot * 100)}% como asistente</div>
+      <div class="fn">${linea('p', 'Principal')}${linea('a', 'Asistente')}</div></div>`;
+  }
   if (ks.length) {
     h += `<div class="box"><h3>Por mes</h3><div class="legend"><span>Cobrado</span><span class="p">Pendiente</span></div><div class="bars">`;
     ks.forEach(k => { const m = meses[k]; h += `<div class="bar"><span>${MES[+k.slice(5) - 1]} ${k.slice(2, 4)}</span><div class="track"><i class="c" style="width:${m.c / max * 100}%"></i><i class="p" style="width:${m.p / max * 100}%"></i></div><b style="text-align:right">${eur(m.c + m.p)}</b></div>`; });
@@ -416,18 +474,166 @@ function vResumen(D) {
     Object.entries(comps).sort((a, b) => b[1].e - a[1].e).forEach(([c, v]) => { h += `<tr><td>${esc(c)}<div class="hint" style="margin:0">${v.n} partido${v.n === 1 ? '' : 's'}</div></td><td>${eur(v.e)}</td></tr>`; });
     h += `</table></div>`;
   } else h += `<div class="empty">Sin partidos jugados en esta temporada.</div>`;
+  h += cajaCuotas(D);
+  return h;
+}
+
+/* ---------- Kilometraje: pagado frente a real ---------- */
+const locN = s => String(s || '').toUpperCase().normalize('NFD').replace(/[^A-Z0-9]/g, '');
+const claveSitio = p => locN(p.localidad) + '|' + locN(p.campo);
+function precioDia(fecha) {
+  const C = S.data.combustible || {}, tipo = perfil().combustible === 'gasolina' ? 'gasolina' : 'diesel';
+  if (C[fecha] && C[fecha][tipo]) return C[fecha][tipo];
+  // si falta ese día, el más cercano que haya
+  const fs = Object.keys(C).filter(f => C[f][tipo]).sort((a, b) => Math.abs(dias(a, fecha)) - Math.abs(dias(b, fecha)));
+  return fs.length ? C[fs[0]][tipo] : null;
+}
+function analisisKm(P) {
+  const pf = perfil(), Dist = S.data.distancias || {};
+  const tarifa = n(pf.tarifaKm) || 0.26;
+  // Un viaje = un día a una localidad (aunque haya varios partidos), solo si te pagan km
+  const viajes = {};
+  P.forEach(p => {
+    const k = p.fecha + '|' + locN(p.localidad);
+    const v = viajes[k] = viajes[k] || { fecha: p.fecha, localidad: p.localidad, pagado: 0, dist: null };
+    v.pagado += n(p.km);
+    const d = Dist[claveSitio(p)];
+    if (d && (!v.dist || d.carretera > v.dist.carretera)) v.dist = d;
+  });
+  // Los partidos en tu propia localidad (km urbano) no cuentan: es una cantidad fija
+  const lista = Object.values(viajes).filter(v => v.pagado > n(pf.kmUrbano) + 0.001);
+  const con = lista.filter(v => v.dist);
+  const R = { viajes: lista.length, conDist: con.length, pct: null, saldo: null, locs: [] };
+  if (!con.length) return R;
+  let kmReal = 0, kmRecta = 0, kmPag = 0, pagado = 0, coste = 0, litros = 0, precios = [];
+  const porLoc = {};
+  con.forEach(v => {
+    const real = v.dist.carretera * 2, recta = v.dist.recta * 2, pag = v.pagado / tarifa;
+    const precio = precioDia(v.fecha);
+    const c = real * ((n(pf.consumo) / 100) * (precio || 0) + n(pf.otrosKm));
+    kmReal += real; kmRecta += recta; kmPag += pag; pagado += v.pagado; coste += c;
+    if (precio) { precios.push(precio); litros += real * n(pf.consumo) / 100; }
+    const L = porLoc[locN(v.localidad)] = porLoc[locN(v.localidad)] || { nombre: titulo(v.localidad), n: 0, recta: v.dist.recta, carretera: v.dist.carretera, pag: 0, pagado: 0, coste: 0 };
+    L.n++; L.pag += pag / 2; L.pagado += v.pagado; L.coste += c;
+  });
+  Object.values(porLoc).forEach(L => { L.pag = L.pag / L.n; });
+  return Object.assign(R, {
+    pct: Math.round(kmPag / kmReal * 100), saldo: pagado - coste, kmReal, kmRecta, kmPag, pagado, coste,
+    precioMedio: precios.length ? precios.reduce((a, b) => a + b, 0) / precios.length : null,
+    sinPrecio: precios.length < con.length,
+    locs: Object.values(porLoc).sort((a, b) => b.n - a.n || b.carretera - a.carretera),
+  });
+}
+function cajaKm(K) {
+  const pf = perfil();
+  if (!K.viajes) return '';
+  if (!K.conDist) return `<div class="box"><h3>Kilometraje</h3><p class="hint">Calculando las distancias reales de tus campos desde ${esc(pf.origen)}. Tarda un rato la primera vez; vuelve a mirar en una hora.</p></div>`;
+  const km = x => Math.round(x).toLocaleString('es-ES') + ' km';
+  const max = Math.max(K.kmReal, K.kmPag, K.kmRecta);
+  const barra = (txt, v, cls) => `<div class="bar"><span>${txt}</span><div class="track"><i class="${cls}" style="width:${v / max * 100}%"></i></div><b style="text-align:right">${km(v)}</b></div>`;
+  const comb = pf.combustible === 'gasolina' ? 'gasolina' : 'gasóleo';
+  let h = `<div class="box"><h3>Kilometraje</h3>
+    <p class="hint" style="margin:-4px 0 12px">${K.conDist} viaje${K.conDist === 1 ? '' : 's'} con kilometraje, ida y vuelta desde ${esc(pf.origen)}${K.conDist < K.viajes ? ` (faltan ${K.viajes - K.conDist} por calcular)` : ''}.</p>
+    <div class="bars" style="grid-template-columns:1fr">
+      ${barra('Recta', K.kmRecta, 'a')}${barra('Pagados', K.kmPag, 'p')}${barra('Carretera', K.kmReal, 'c')}
+    </div>
+    <p class="hint" style="margin-top:10px">Te pagan <b>${K.pct} %</b> de los km que haces por carretera${K.kmRecta ? ` y el ${Math.round(K.kmPag / K.kmRecta * 100)} % de la distancia en línea recta` : ''}.</p>
+    <table class="t" style="margin-top:8px">
+      <tr><td>Kilometraje cobrado</td><td>${eur(K.pagado)}</td></tr>
+      <tr><td>Te cuesta${n(pf.otrosKm) ? ' (combustible + gastos)' : ' en ' + comb}<div class="hint" style="margin:0">${n(pf.consumo)} l/100 km${K.precioMedio ? ' · ' + comb + ' a ' + K.precioMedio.toFixed(3).replace('.', ',') + ' €/l de media' : ''}${n(pf.otrosKm) ? ' · ' + eur(pf.otrosKm) + '/km de gastos' : ''}</div></td><td>${eur(K.coste)}</td></tr>
+      <tr><td><b>Saldo</b></td><td style="color:${K.saldo < 0 ? 'var(--red)' : 'var(--ok)'}">${(K.saldo > 0 ? '+' : '') + eur(K.saldo)}</td></tr>
+    </table>
+    ${K.sinPrecio ? '<p class="hint">Aún faltan precios del combustible de algunos días; se usa el más cercano.</p>' : ''}
+    <div class="month" style="margin-top:14px">Por localidad · solo ida</div>
+    <table class="t kmt"><tr><td></td><td>Recta</td><td>Pagan</td><td>Carretera</td></tr>`;
+  K.locs.forEach(L => {
+    const cerca = Math.abs(L.pag - L.recta) < Math.abs(L.pag - L.carretera) ? 'recta' : 'carretera';
+    h += `<tr><td>${esc(L.nombre)}<div class="hint" style="margin:0">${L.n} viaje${L.n === 1 ? '' : 's'}</div></td>
+      <td class="${cerca === 'recta' ? 'hl' : ''}">${L.recta.toFixed(0)}</td><td><b>${L.pag.toFixed(0)}</b></td><td class="${cerca === 'carretera' ? 'hl' : ''}">${L.carretera.toFixed(0)}</td></tr>`;
+  });
+  h += `</table><p class="hint">Resaltado: a qué se parece más lo que te pagan. Km pagados = € de km ÷ ${String(n(pf.tarifaKm) || 0.26).replace('.', ',')} €/km (cámbialo en Ajustes). No cuentan los viajes como asistente (no se cobra km) ni los partidos con km urbano (${eur(pf.kmUrbano)}).</p></div>`;
+  return h;
+}
+
+/* ---------- ¿Han subido las cuotas? ---------- */
+function cajaCuotas(D) {
+  const hoy = D.hoy;
+  const P = D.P.filter(p => p.fecha < hoy && p.origen !== 'manual');
+  const temps = [...new Set(P.map(p => temporada(p.fecha)))].sort();
+  if (temps.length < 2) return '';
+  const moda = arr => { const c = {}; arr.forEach(x => c[x] = (c[x] || 0) + 1); return +Object.keys(c).sort((a, b) => c[b] - c[a])[0]; };
+  const cat = p => String(p.categoria || p.competicion).replace(/\s*\(.*$/, '').replace(/\s+E\.F\..*$/i, '').trim();
+  const G = {};
+  P.forEach(p => {
+    const k = cat(p) + '|' + rolDe(p);
+    const g = G[k] = G[k] || { cat: titulo(cat(p)).replace(/ª/g, 'ª'), rol: rolDe(p), t: {} };
+    (g.t[temporada(p.fecha)] = g.t[temporada(p.fecha)] || []).push(n(p.importe));
+  });
+  const filas = Object.values(G).map(g => {
+    const ts = temps.filter(t => g.t[t]);
+    const v = {}; ts.forEach(t => v[t] = moda(g.t[t]));
+    return Object.assign(g, { ts, v, ini: v[ts[0]], fin: v[ts[ts.length - 1]] });
+  }).filter(g => g.ts.length >= 2 && g.ini > 0).sort((a, b) => a.rol.localeCompare(b.rol) || b.fin - a.fin);
+
+  // Kilometraje por localidad entre temporadas
+  const KL = {};
+  P.forEach(p => { if (n(p.kmRfaf) > 0) { const k = locN(p.localidad); (KL[k] = KL[k] || {})[temporada(p.fecha)] = n(p.kmRfaf); } });
+  const kmCmp = Object.values(KL).map(o => { const ts = Object.keys(o).sort(); return ts.length >= 2 ? o[ts[ts.length - 1]] / o[ts[0]] - 1 : null; }).filter(x => x != null);
+  const kmVar = kmCmp.length ? kmCmp.reduce((a, b) => a + b, 0) / kmCmp.length : null;
+
+  // IPC entre el inicio de la primera temporada y el de la última (o el último dato)
+  const ipc = S.data.ipc || {};
+  const meses = Object.keys(ipc).sort();
+  const y0 = parseInt(temps[0], 10), y1 = parseInt(temps[temps.length - 1], 10);
+  const mesIni = meses.find(m => m >= y0 + '-09') ;
+  const mesFin = meses.filter(m => m <= y1 + '-09').pop();
+  const ipcVar = mesIni && mesFin && mesFin > mesIni ? ipc[mesFin] / ipc[mesIni] - 1 : null;
+  const pct = x => (x >= 0 ? '+' : '') + (x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0).replace('.', ',') + ' %';
+  const subidas = filas.map(g => g.fin / g.ini - 1).sort((a, b) => a - b);
+  const mediana = subidas.length ? subidas[Math.floor(subidas.length / 2)] : null;
+  const mesTxt = m => MES[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+
+  let h = `<div class="box"><h3>¿Han subido las cuotas?</h3>
+    <p class="hint" style="margin:-4px 0 12px">De ${temps[0]} a ${temps[temps.length - 1]}, con lo que te ha pagado la RFAF.</p>
+    <div class="fn" style="grid-template-columns:repeat(3,1fr)">
+      <div><div class="k">Cuota</div><div class="num">${mediana == null ? '—' : pct(mediana)}</div><div class="hint" style="margin:0">mediana de categorías</div></div>
+      <div><div class="k a">IPC</div><div class="num">${ipcVar == null ? '—' : pct(ipcVar)}</div><div class="hint" style="margin:0">${ipcVar == null ? 'sin datos aún' : mesTxt(mesIni) + ' → ' + mesTxt(mesFin)}</div></div>
+      <div><div class="k c">Km por localidad</div><div class="num">${kmVar == null ? '—' : pct(kmVar)}</div><div class="hint" style="margin:0">${kmCmp.length} localidad${kmCmp.length === 1 ? '' : 'es'}</div></div>
+    </div>
+    <table class="t" style="margin-top:12px"><tr><td></td>${temps.map(t => `<td style="text-align:right;color:var(--ink-2);font-weight:500;font-size:12px;padding-left:8px">${t.slice(2)}</td>`).join('')}<td style="color:var(--ink-2);font-weight:500;font-size:12px;padding-left:8px">Subida</td></tr>`;
+  filas.forEach(g => {
+    const sub = g.fin / g.ini - 1;
+    const conIpc = ipcVar != null ? g.ini * (1 + ipcVar) : null;
+    h += `<tr><td><span class="rol ${g.rol}">${ROL_TXT[g.rol].slice(0, 5)}.</span>${esc(g.cat)}${conIpc && g.fin < conIpc - 0.005 ? `<div class="hint bad" style="margin:0">con el IPC serían ${eur(conIpc)}</div>` : ''}</td>
+      ${temps.map(t => `<td style="text-align:right;font-weight:500;padding-left:8px">${g.v[t] != null ? g.v[t].toFixed(2).replace('.', ',') : '·'}</td>`).join('')}
+      <td style="padding-left:8px;white-space:nowrap;color:${ipcVar != null && sub < ipcVar ? 'var(--red)' : 'var(--ok)'}">${pct(sub)}</td></tr>`;
+  });
+  h += `</table><p class="hint">Cuota de arbitraje sin manutención ni km. En rojo, lo que ha subido menos que el IPC.</p></div>`;
   return h;
 }
 
 function vAjustes() {
-  const c = S.cfg;
-  return `<div class="box" style="margin-top:16px"><h3>Conexión con Google</h3>
+  const c = S.cfg, pf = perfil();
+  const provOpts = (ids) => ids.map(k => `<option value="${k}" ${pf.provincia === k ? 'selected' : ''}>${PROVINCIAS[k]}</option>`).join('');
+  const resto = Object.keys(PROVINCIAS).filter(k => !ANDALUCIA.includes(k)).sort((a, b) => PROVINCIAS[a].localeCompare(PROVINCIAS[b]));
+  return `<div class="box" style="margin-top:16px"><h3>Mi perfil</h3>
+    <p class="hint" style="margin:-4px 0 12px">Con estos datos se calcula lo que te cuesta de verdad cada desplazamiento.</p>
+    <label class="f">Nombre<input id="pfNombre" value="${esc(pf.nombre)}" placeholder="Opcional"></label>
+    <label class="f">Desde dónde sales a los partidos<input id="pfOrigen" value="${esc(pf.origen)}" placeholder="Jaén, o tu dirección"></label>
+    <label class="f">Provincia (para el precio del combustible)<select id="pfProv"><optgroup label="Andalucía">${provOpts(ANDALUCIA)}</optgroup><optgroup label="Resto de España">${provOpts(resto)}</optgroup></select></label>
+    <div class="row"><label class="f">Combustible<select id="pfComb"><option value="diesel" ${pf.combustible !== 'gasolina' ? 'selected' : ''}>Diésel</option><option value="gasolina" ${pf.combustible === 'gasolina' ? 'selected' : ''}>Gasolina</option></select></label>
+      <label class="f">Consumo (l/100 km)<input id="pfCons" inputmode="decimal" value="${esc(pf.consumo)}"></label></div>
+    <label class="f">Otros gastos del coche por km (€) <span style="opacity:.7">· seguro, ruedas, mantenimiento… 0 = solo combustible</span><input id="pfOtros" inputmode="decimal" value="${esc(pf.otrosKm)}"></label>
+    <div class="row"><label class="f">Tarifa RFAF (€/km)<input id="pfTarifa" inputmode="decimal" value="${esc(pf.tarifaKm)}"></label>
+      <label class="f">Km urbano (€) <span style="opacity:.7">se paga siempre</span><input id="pfUrb" inputmode="decimal" value="${esc(pf.kmUrbano)}"></label></div>
+    <label class="f">Marcar en rojo los pagos pendientes de más de (días)<input id="pfDias" type="number" min="1" value="${esc(pf.avisoDias)}"></label>
+    <div class="row"><button class="btn pri" onclick="guardarPerfil()">Guardar perfil</button></div>
+    <p class="hint" id="pfMsg"></p></div>
+  <div class="box"><h3>Conexión con Google</h3>
     <label class="f">URL de la aplicación web (Apps Script)<input id="cfgUrl" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
     <label class="f">Token<input id="cfgTok" value="${esc(c.token)}" autocomplete="off"></label>
     <div class="row"><button class="btn pri" onclick="guardarCfg()">Guardar y probar</button></div>
     <p class="hint" id="cfgMsg">${c.demo ? 'Ahora mismo estás en modo demostración.' : ''}</p></div>
-  <div class="box"><h3>Avisos</h3>
-    <label class="f">Marcar en rojo los pagos pendientes de más de (días)<input id="cfgDias" type="number" min="1" value="${c.avisoDias}" onchange="S.cfg.avisoDias=+this.value||30;LS.set('cfg',S.cfg)"></label></div>
   <div class="box"><h3>Demostración</h3><p class="hint">Datos de ejemplo para probar la app sin conectar nada.</p>
     <div class="row" style="margin-top:10px">${c.demo ? `<button class="btn" onclick="activarDemo(false)">Salir del modo demo</button><button class="btn" onclick="LS.set('demoData',null);DEMO=null;cargar()">Reiniciar demo</button>` : `<button class="btn" onclick="activarDemo(true)">Probar con datos de ejemplo</button>`}</div></div>
   <div class="box"><h3>Exportar</h3><div class="row"><button class="btn" onclick="exportarCSV()">Descargar CSV de partidos</button></div></div>`;
@@ -440,7 +646,7 @@ function abrir(id) {
   const mapa = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([p.campo, p.direccion, p.localidad].filter(Boolean).join(', '));
   const d = parseD(p.fecha);
   $('#sheetIn').innerHTML = `
-    <div class="hint" style="margin:0 0 4px">${DOW[d.getDay()]} ${d.getDate()} ${MESL[d.getMonth()].toLowerCase()} ${d.getFullYear()} · ${esc(p.hora)} · ${esc(titulo(p.funcion))}</div>
+    <div class="hint" style="margin:0 0 4px">${rolChip(p)}${DOW[d.getDay()]} ${d.getDate()} ${MESL[d.getMonth()].toLowerCase()} ${d.getFullYear()} · ${esc(p.hora)}</div>
     <h2>${esc(titulo(p.local))}<br><span style="color:var(--ink-2)">vs</span> ${esc(titulo(p.visitante))}</h2>
     <dl class="kv">
       <dt>Competición</dt><dd>${esc(p.competicion)}${p.grupo ? ' · ' + esc(p.grupo) : ''}</dd>
@@ -449,7 +655,12 @@ function abrir(id) {
     </dl>
     <div class="row"><label class="f">Arbitraje<input id="eImp" inputmode="decimal" value="${esc(p.importe)}"></label>
       <label class="f">Manutención<input id="eMan" inputmode="decimal" value="${esc(p.manutencion)}"></label>
-      <label class="f">Km<input id="eKm" inputmode="decimal" value="${esc(p.km)}"></label></div>
+      <label class="f">Km<input id="eKm" inputmode="decimal" value="${esc(p.km)}" oninput="kmEditado()"></label></div>
+    <label class="f">Kilometraje<select id="eKmModo" onchange="kmModo('${esc(p.id)}')">
+      <option value="" ${!p.kmModo ? 'selected' : ''}>Automático</option>
+      <option value="si" ${p.kmModo === 'si' ? 'selected' : ''}>Sí lo cobro</option>
+      <option value="no" ${p.kmModo === 'no' ? 'selected' : ''}>No lo cobro</option></select></label>
+    <p class="hint" id="kmHint" style="margin:-4px 0 10px">${kmTexto(p, p.kmModo || '')}</p>
     <div class="row"><label class="f">Estado<select id="eEst"><option value="pendiente" ${p.estado !== 'cobrado' ? 'selected' : ''}>Pendiente</option><option value="cobrado" ${p.estado === 'cobrado' ? 'selected' : ''}>Cobrado</option></select></label>
       <label class="f">Fecha de cobro<input id="eFc" type="date" value="${esc(p.fechaCobro)}"></label></div>
     <label class="f">Notas<textarea id="eNot" rows="2">${esc(p.notas)}</textarea></label>
@@ -458,11 +669,30 @@ function abrir(id) {
     <div class="row" style="margin-top:6px"><button class="btn danger" onclick="borrarPartido('${esc(p.id)}')">No lo arbitro (me lo quitaron / anulado)</button></div>`;
   $('#sheet').showModal();
 }
+function kmTexto(p, modo) {
+  const rf = p.kmRfaf !== undefined && p.kmRfaf !== '' ? eur(p.kmRfaf) : null;
+  if (modo === 'si') return 'Se cobra el kilometraje en este partido' + (rf ? ` (la designación pone ${rf}).` : '.');
+  if (modo === 'no') return 'No se cobra el kilometraje en este partido.';
+  return 'Si ese día tienes otro partido en la misma localidad, el km se cobra solo en uno' + (rf ? `. La designación pone ${rf}.` : '.');
+}
+function kmModo(id) {
+  const p = S.data.partidos.find(x => x.id === id); const m = $('#eKmModo').value;
+  if (m === 'no') $('#eKm').value = '0.00';
+  if (m === 'si' && !n($('#eKm').value)) $('#eKm').value = n(p.kmRfaf || p.km).toFixed(2);
+  if (m === '') $('#eKm').value = p.km;
+  $('#kmHint').textContent = kmTexto(p, m);
+}
+// Si escribes el km a mano, se entiende que lo decides tú
+function kmEditado() {
+  const sel = $('#eKmModo'); if (sel.value) return;
+  sel.value = n($('#eKm').value) > 0 ? 'si' : 'no';
+  $('#kmHint').textContent = 'Has cambiado el km a mano: queda fijado así (' + (sel.value === 'si' ? 'Sí lo cobro' : 'No lo cobro') + ').';
+}
 async function guardarPartido(id) {
   const imp = $('#eImp').value, man = $('#eMan').value, km = $('#eKm').value;
   let est = $('#eEst').value, fc = $('#eFc').value;
   if (est === 'cobrado' && !fc) fc = hoyISO();
-  const campos = { importe: n(imp).toFixed(2), manutencion: n(man).toFixed(2), km: n(km).toFixed(2), total: (n(imp) + n(man) + n(km)).toFixed(2), estado: est, fechaCobro: est === 'cobrado' ? fc : '', notas: $('#eNot').value };
+  const campos = { importe: n(imp).toFixed(2), manutencion: n(man).toFixed(2), km: n(km).toFixed(2), total: (n(imp) + n(man) + n(km)).toFixed(2), estado: est, fechaCobro: est === 'cobrado' ? fc : '', notas: $('#eNot').value, kmModo: $('#eKmModo').value };
   if (await accion('update', { id, campos }, 'Guardado')) $('#sheet').close();
 }
 async function borrarPartido(id) {
@@ -524,6 +754,14 @@ async function borrarIngreso(id) {
 }
 
 /* ============================ Ajustes ============================ */
+async function guardarPerfil() {
+  const v = id => $(id).value;
+  const datos = { nombre: v('#pfNombre'), origen: v('#pfOrigen'), provincia: v('#pfProv'), combustible: v('#pfComb'),
+    consumo: n(v('#pfCons')), otrosKm: n(v('#pfOtros')), tarifaKm: n(v('#pfTarifa')) || 0.26, kmUrbano: n(v('#pfUrb')), avisoDias: n(v('#pfDias')) || 30 };
+  const msg = $('#pfMsg'); msg.className = 'hint'; msg.textContent = 'Guardando… (si has cambiado la salida, se recalculan las distancias)';
+  try { guardar(await api('guardarPerfil', { perfil: datos })); toast('Perfil guardado'); }
+  catch (e) { const m = $('#pfMsg'); if (m) { m.className = 'hint bad'; m.textContent = e.message; } }
+}
 async function guardarCfg() {
   S.cfg.url = $('#cfgUrl').value.trim(); S.cfg.token = $('#cfgTok').value.trim(); S.cfg.demo = false;
   LS.set('cfg', S.cfg);
