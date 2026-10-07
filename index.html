@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis Designaciones</title>
+<meta name="description" content="Partidos y cobros de árbitro RFAF">
+<meta name="theme-color" content="#0f3d2e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f1ea; --surface:#ffffff; --surface-2:#ebe8de; --ink:#16201b; --ink-2:#5b6660; --line:#dcd8cc;
+  --pitch:#0f3d2e; --pitch-2:#1d5c45; --card:#f5c518; --card-ink:#2a2200; --red:#c8372d; --ok:#1f7a4d;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1210; --surface:#151d19; --surface-2:#1d2722; --ink:#e9efe9; --ink-2:#97a59c; --line:#26332c;
+    --pitch:#0b2a20; --pitch-2:#2f8a66; --card:#f5c518; --card-ink:#2a2200; --red:#ef6a5f; --ok:#4fc28a;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1210; --surface:#151d19; --surface-2:#1d2722; --ink:#e9efe9; --ink-2:#97a59c; --line:#26332c;
+  --pitch:#0b2a20; --pitch-2:#2f8a66; --card:#f5c518; --card-ink:#2a2200; --red:#ef6a5f; --ok:#4fc28a; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:640px;margin:0 auto;padding:0 16px calc(96px + env(safe-area-inset-bottom))}
+h1,h2,h3,.num{font-family:"Barlow Condensed",Inter,sans-serif;letter-spacing:.01em}
+
+/* Cabecera */
+header.top{background:var(--pitch);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 0 18px;position:relative;overflow:hidden}
+header.top::after{content:"";position:absolute;inset:auto -40px -70px auto;width:180px;height:180px;border:2px solid rgba(255,255,255,.12);border-radius:50%}
+header.top .wrap{padding-bottom:0;display:flex;align-items:center;gap:12px}
+.logo{width:34px;height:34px;flex:none}
+header.top h1{font-size:24px;margin:0;line-height:1}
+header.top small{opacity:.7;font-size:12px}
+.iconbtn{margin-left:auto;background:rgba(255,255,255,.12);border:0;color:#fff;border-radius:10px;width:40px;height:40px;display:grid;place-items:center;cursor:pointer}
+.iconbtn svg{width:20px;height:20px}
+.iconbtn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Marcador */
+.score{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:-2px 0 16px;position:relative;z-index:1}
+.tile{background:var(--surface);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.tile .lbl{font-size:12px;color:var(--ink-2)}
+.tile .num{font-size:30px;font-weight:700;line-height:1.1}
+.tile .sub{font-size:12px;color:var(--ink-2)}
+.tile.warn{background:var(--card);color:var(--card-ink);border-color:transparent}
+.tile.warn .lbl,.tile.warn .sub{color:rgba(42,34,0,.75)}
+.tile.full{grid-column:1/-1}
+.next{display:flex;gap:12px;align-items:center}
+.next .when{background:var(--pitch);color:#fff;border-radius:10px;padding:6px 10px;text-align:center;min-width:58px}
+.next .when b{display:block;font-family:"Barlow Condensed";font-size:22px;line-height:1}
+.next .when span{font-size:11px;text-transform:uppercase;opacity:.8}
+
+/* Segmentos */
+.seg{display:flex;background:var(--surface-2);border-radius:12px;padding:4px;margin:4px 0 14px}
+.seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:9px;cursor:pointer;color:var(--ink-2);font-weight:500}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+
+/* Partido */
+.month{font-family:"Barlow Condensed";font-size:15px;text-transform:uppercase;color:var(--ink-2);margin:18px 2px 8px;letter-spacing:.06em}
+.match{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;cursor:pointer;width:100%;text-align:left}
+.match:active{transform:scale(.99)}
+.date{text-align:center;border-right:1px solid var(--line);padding-right:10px}
+.date b{display:block;font-family:"Barlow Condensed";font-size:26px;line-height:1}
+.date span{font-size:11px;text-transform:uppercase;color:var(--ink-2)}
+.teams{min-width:0}
+.teams .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teams .meta{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.amt{text-align:right}
+.amt .num{font-size:20px;font-weight:700}
+.chip{display:inline-block;font-size:11px;font-weight:600;border-radius:99px;padding:2px 8px;white-space:nowrap}
+.chip.p{background:var(--card);color:var(--card-ink)}
+.chip.c{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.chip.f{background:var(--surface-2);color:var(--ink-2)}
+.chip.old{background:var(--red);color:#fff}
+.empty{text-align:center;color:var(--ink-2);padding:40px 10px}
+
+/* Cobros */
+.pend{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}
+.pend input{width:22px;height:22px;accent-color:var(--pitch-2)}
+.pend.sel{border-color:var(--pitch-2);background:color-mix(in srgb,var(--pitch-2) 8%,var(--surface))}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.box h3{margin:0 0 10px;font-size:20px}
+.row{display:flex;gap:8px}
+.row>*{flex:1;min-width:0}
+label.f{display:block;font-size:12px;color:var(--ink-2);margin-bottom:10px}
+label.f input,label.f select,label.f textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.btn{border:0;border-radius:11px;padding:11px 14px;font-weight:600;cursor:pointer;background:var(--surface-2)}
+.btn.pri{background:var(--pitch-2);color:#fff}
+.btn.y{background:var(--card);color:var(--card-ink)}
+.btn.danger{background:transparent;color:var(--red)}
+.btn:disabled{opacity:.45}
+.hint{font-size:13px;color:var(--ink-2);margin:6px 0 0}
+.hint.ok{color:var(--ok)}
+.hint.bad{color:var(--red)}
+.ing{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.ing:first-of-type{border-top:0}
+
+/* Resumen */
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:62px 1fr 74px;gap:10px;align-items:center;font-size:13px}
+.bar .track{height:12px;background:var(--surface-2);border-radius:6px;overflow:hidden;display:flex}
+.bar .track i{display:block;height:100%}
+.bar .track i.c{background:var(--pitch-2)}
+.bar .track i.p{background:var(--card)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin-bottom:10px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--pitch-2)}
+.legend span.p::before{background:var(--card)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t td{padding:7px 0;border-top:1px solid var(--line)}
+table.t td:last-child{text-align:right;font-weight:600}
+
+/* Navegación inferior */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav.tabs div{display:flex;max-width:640px;width:100%}
+nav.tabs button{flex:1;border:0;background:none;padding:10px 0 8px;display:grid;justify-items:center;gap:2px;font-size:11px;color:var(--ink-2);cursor:pointer;position:relative}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button.on{color:var(--pitch-2);font-weight:600}
+nav.tabs .badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--card);color:var(--card-ink);font-size:10px;font-weight:700;border-radius:99px;padding:0 5px}
+.fab{position:fixed;right:max(16px,calc(50% - 304px));bottom:calc(76px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:16px;border:0;background:var(--card);color:var(--card-ink);font-size:28px;box-shadow:0 6px 18px rgba(0,0,0,.2);cursor:pointer;z-index:4}
+
+/* Hoja de detalle */
+dialog{border:0;padding:0;width:100%;max-width:640px;margin:auto auto 0;border-radius:20px 20px 0 0;background:var(--surface);color:var(--ink);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .in{padding:18px 16px calc(18px + env(safe-area-inset-bottom));overflow:auto;max-height:92vh}
+dialog h2{margin:0;font-size:26px;line-height:1.1}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:14px;margin:14px 0}
+.kv dt{color:var(--ink-2)}
+.kv dd{margin:0}
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw}
+.toast.show{opacity:1}
+.banner{background:var(--card);color:var(--card-ink);border-radius:12px;padding:10px 12px;font-size:13px;margin:0 0 14px}
+a{color:var(--pitch-2)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="14" y="6" width="26" height="36" rx="4" fill="#f5c518" transform="rotate(-10 27 24)"/><rect x="24" y="14" width="26" height="36" rx="4" fill="#e04437" transform="rotate(8 37 32)"/><circle cx="22" cy="48" r="10" fill="#fff"/><path d="M22 41l3 4-2 5h-3l-2-5z" fill="#0f3d2e"/></svg>
+    <div><h1>Mis Designaciones</h1><small id="sub">Árbitro RFAF</small></div>
+    <button class="iconbtn" id="syncBtn" title="Buscar designaciones nuevas en Gmail" aria-label="Sincronizar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<button class="fab" id="fab" aria-label="Añadir partido a mano">+</button>
+
+<nav class="tabs"><div>
+  <button data-tab="partidos" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 5h-5L8 10z"/></svg>Partidos</button>
+  <button data-tab="cobros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Cobros<span class="badge" id="badge" hidden></span></button>
+  <button data-tab="resumen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resumen</button>
+  <button data-tab="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
+</div></nav>
+
+<dialog id="sheet"><div class="in" id="sheetIn"></div></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ Estado ============================ */
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const S = {
+  cfg: LS.get('cfg', { url: '', token: '', demo: false, avisoDias: 30 }),
+  data: LS.get('data', { partidos: [], ingresos: [] }),
+  tab: 'partidos', vista: 'proximos', sel: new Set(), filtroTemp: null,
+};
+
+/* ============================ Utilidades ============================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const n = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(x) ? 0 : x; };
+const eur = v => n(v).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const hoyISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const parseD = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+const dias = (a, b) => Math.round((parseD(b) - parseD(a)) / 864e5);
+const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const DOW = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const temporada = f => { const d = parseD(f); const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1; return y + '/' + String(y + 1).slice(2); };
+const titulo = s => String(s || '').toLowerCase().replace(/(^|[\s(."-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()).replace(/\bC\.d\./gi, 'C.D.').replace(/\b(Cd|Ud|Cf|Ad|Sd)\b/g, x => x.toUpperCase());
+const total = p => n(p.total) || (n(p.importe) + n(p.manutencion) + n(p.km));
+
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ============================ API ============================ */
+async function api(action, body) {
+  if (S.cfg.demo) return demoApi(action, body);
+  if (!S.cfg.url || !S.cfg.token) throw new Error('Configura la conexión en Ajustes');
+  let r;
+  if (!body) {
+    r = await fetch(S.cfg.url + '?action=' + action + '&token=' + encodeURIComponent(S.cfg.token));
+  } else {
+    r = await fetch(S.cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.cfg.token }, body)) });
+  }
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Error del servidor');
+  return j.data;
+}
+function guardar(data) {
+  if (!data) return;
+  S.data = { partidos: data.partidos || [], ingresos: data.ingresos || [] };
+  LS.set('data', S.data);
+  render();
+}
+async function cargar(accion = 'list') {
+  const b = $('#syncBtn'); b.classList.add('spin');
+  try {
+    const d = accion === 'sync' ? await api('sync', {}) : await api('list');
+    guardar(d);
+    if (accion === 'sync') toast(d.nuevos ? d.nuevos + ' designación(es) nueva(s)' : 'Sin designaciones nuevas');
+  } catch (e) { toast(e.message); }
+  finally { b.classList.remove('spin'); }
+}
+async function accion(action, body, ok) {
+  try { guardar(await api(action, body)); if (ok) toast(ok); return true; }
+  catch (e) { toast(e.message); return false; }
+}
+
+/* ============================ Modo demo ============================ */
+function demoDatos() {
+  const add = (dd) => { const d = new Date(); d.setDate(d.getDate() + dd); return d.toISOString().slice(0, 10); };
+  const P = (id, f, h, comp, loc, vis, campo, local, imp, km, est, fc) => ({ id, funcion: 'ARBITRO', fecha: f, hora: h, competicion: comp, categoria: '', grupo: 'Grupo Único', local: loc, visitante: vis, campo, direccion: '', localidad: local, importe: imp, manutencion: '0.00', km, total: (n(imp) + n(km)).toFixed(2), estado: est, fechaCobro: fc || '', ingresoId: fc ? 'I1' : '', notas: '', origen: 'gmail' });
+  return {
+    partidos: [
+      P('1978535', '2026-10-03', '12:00', '2ª Andaluza Alevín (Jaén)', 'CLUB DEPORTIVO JAEN 2021 "A"', 'MARTOS C.D. "A"', 'Jaén - ANTOÑETE', 'Jaén', '14.86', '4.50', 'pendiente'),
+      P('1979102', add(4), '10:30', '1ª Andaluza Infantil (Jaén)', 'REAL JAEN C.F. "B"', 'C.D. TORREDONJIMENO', 'Jaén - LA SALOBREJA', 'Jaén', '19.40', '4.50', 'pendiente'),
+      P('1979240', add(5), '17:00', '2ª Andaluza Cadete (Jaén)', 'U.D. MANCHA REAL', 'C.D. VILLACARRILLO', 'Mancha Real - MUNICIPAL', 'Mancha Real', '21.10', '9.80', 'pendiente'),
+      P('1974410', '2026-09-27', '11:00', '2ª Andaluza Alevín (Jaén)', 'C.D. ATLETICO JAEN "A"', 'C.D. ALCAUDETE "A"', 'Jaén - LAS LAGUNILLAS', 'Jaén', '14.86', '4.50', 'pendiente'),
+      P('1971006', '2026-09-20', '16:30', '1ª Andaluza Infantil (Jaén)', 'C.D. TORREPEROGIL', 'LINARES DEPORTIVO "B"', 'Torreperogil - MUNICIPAL', 'Torreperogil', '19.40', '14.20', 'cobrado', '2026-10-01'),
+      P('1969870', '2026-09-13', '12:00', '2ª Andaluza Alevín (Jaén)', 'C.D. JAEN F.S. "A"', 'C.D. BAILEN "A"', 'Jaén - ANTOÑETE', 'Jaén', '14.86', '4.50', 'cobrado', '2026-10-01'),
+      P('1961233', '2026-08-30', '19:00', 'Torneo Pretemporada', 'C.D. MENGIBAR', 'C.D. VILCHES', 'Mengíbar - MUNICIPAL', 'Mengíbar', '18.00', '7.60', 'pendiente'),
+    ],
+    ingresos: [{ id: 'I1', fecha: '2026-10-01', importe: '52.96', nota: 'Transferencia RFAF', partidos: '1971006,1969870' }],
+  };
+}
+let DEMO = null;
+function demoApi(action, b) {
+  DEMO = DEMO || LS.get('demoData', null) || demoDatos();
+  const P = DEMO.partidos, find = id => P.find(p => p.id === String(id));
+  if (action === 'update') { const p = find(b.id); Object.assign(p, b.campos); if (p.estado === 'pendiente') { p.fechaCobro = ''; p.ingresoId = ''; } }
+  if (action === 'add') P.push(Object.assign({ id: 'M' + Date.now(), estado: 'pendiente', origen: 'manual' }, b.campos));
+  if (action === 'delete') DEMO.partidos = P.filter(p => p.id !== String(b.id));
+  if (action === 'cobro') { const id = 'I' + Date.now(); DEMO.ingresos.push({ id, fecha: b.fecha, importe: String(b.importe), nota: b.nota, partidos: b.ids.join(',') }); b.ids.forEach(i => Object.assign(find(i), { estado: 'cobrado', fechaCobro: b.fecha, ingresoId: id })); }
+  if (action === 'deleteIngreso') { DEMO.ingresos = DEMO.ingresos.filter(i => i.id !== b.id); P.forEach(p => { if (p.ingresoId === b.id) Object.assign(p, { estado: 'pendiente', fechaCobro: '', ingresoId: '' }); }); }
+  LS.set('demoData', DEMO);
+  return Promise.resolve(Object.assign(JSON.parse(JSON.stringify(DEMO)), action === 'sync' ? { nuevos: 0 } : {}));
+}
+
+/* ============================ Cálculos ============================ */
+function derivados() {
+  const hoy = hoyISO();
+  const P = S.data.partidos.slice().sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+  const jugados = P.filter(p => p.fecha < hoy || (p.fecha === hoy && false));
+  const proximos = P.filter(p => p.fecha >= hoy);
+  const pendientes = jugados.filter(p => p.estado !== 'cobrado');
+  const tempAct = temporada(hoy);
+  const cobradoTemp = P.filter(p => p.estado === 'cobrado' && temporada(p.fecha) === tempAct).reduce((s, p) => s + total(p), 0);
+  return { hoy, P, jugados, proximos, pendientes, tempAct, cobradoTemp, pendTotal: pendientes.reduce((s, p) => s + total(p), 0) };
+}
+
+/** Busca qué partidos pendientes suman exactamente el importe recibido (prefiere los más antiguos). */
+function cuadrar(importe, lista) {
+  const objetivo = Math.round(n(importe) * 100);
+  if (objetivo <= 0) return null;
+  const items = lista.map(p => ({ id: p.id, c: Math.round(total(p) * 100) })).filter(x => x.c > 0).slice(0, 80);
+  const prev = new Int32Array(objetivo + 1).fill(-1), via = new Int16Array(objetivo + 1).fill(-1);
+  prev[0] = 0; via[0] = -2;
+  items.forEach((it, i) => {
+    for (let s = objetivo; s >= it.c; s--) if (via[s] === -1 && via[s - it.c] !== -1 && via[s - it.c] !== i) { via[s] = i; prev[s] = s - it.c; }
+  });
+  // reconstruye (con comprobación de que no se repite un mismo partido)
+  const rec = s => { const ids = []; const used = new Set(); while (s > 0) { const i = via[s]; if (i < 0 || used.has(i)) return null; used.add(i); ids.push(items[i].id); s = prev[s]; } return ids; };
+  let r = via[objetivo] !== -1 ? rec(objetivo) : null;
+  if (r) return { exacto: true, ids: r };
+  for (let s = objetivo - 1; s > 0; s--) if (via[s] !== -1) { r = rec(s); if (r) return { exacto: false, ids: r, suma: s / 100 }; }
+  return null;
+}
+
+/* ============================ Vistas ============================ */
+function render() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
+  const D = derivados();
+  const badge = $('#badge'); badge.hidden = !D.pendientes.length; badge.textContent = D.pendientes.length;
+  $('#sub').textContent = S.cfg.demo ? 'Modo demostración' : 'Temporada ' + D.tempAct;
+  $('#fab').hidden = S.tab !== 'partidos';
+  const m = $('#main');
+  if (!S.cfg.demo && (!S.cfg.url || !S.cfg.token) && S.tab !== 'ajustes') { m.innerHTML = bienvenida(); return; }
+  m.innerHTML = { partidos: vPartidos, cobros: vCobros, resumen: vResumen, ajustes: vAjustes }[S.tab](D);
+}
+
+function bienvenida() {
+  return `<div class="box" style="margin-top:16px"><h3>Primeros pasos</h3>
+  <p>Esta app lee tus designaciones de la RFAF desde Gmail y lleva la cuenta de lo que te deben.</p>
+  <p class="hint">1. Instala el script en tu Google (ver README).<br>2. Pega aquí la URL y el token que te da.</p>
+  <div class="row" style="margin-top:12px"><button class="btn pri" onclick="irA('ajustes')">Conectar</button><button class="btn" onclick="activarDemo(true)">Ver demo</button></div></div>`;
+}
+
+function tarjetaPartido(p, hoy) {
+  const d = parseD(p.fecha);
+  const jugado = p.fecha < hoy;
+  let chip;
+  if (!jugado) chip = `<span class="chip f">${esc(p.hora || '')}</span>`;
+  else if (p.estado === 'cobrado') chip = `<span class="chip c">Cobrado</span>`;
+  else { const ds = dias(p.fecha, hoy); chip = `<span class="chip ${ds > S.cfg.avisoDias ? 'old' : 'p'}">${ds} d</span>`; }
+  return `<button class="match" onclick="abrir('${esc(p.id)}')">
+    <div class="date"><span>${DOW[d.getDay()]}</span><b>${d.getDate()}</b><span>${MES[d.getMonth()]}</span></div>
+    <div class="teams"><div class="t">${esc(titulo(p.local))}</div><div class="t">${esc(titulo(p.visitante))}</div>
+      <div class="meta">${esc(p.competicion)} · ${esc(titulo(p.campo))}</div></div>
+    <div class="amt"><div class="num">${eur(total(p))}</div>${chip}</div></button>`;
+}
+
+function vPartidos(D) {
+  const prox = D.proximos[0];
+  let h = `<div class="score">
+    <div class="tile warn"><div class="lbl">Pendiente de cobro</div><div class="num">${eur(D.pendTotal)}</div><div class="sub">${D.pendientes.length} partido${D.pendientes.length === 1 ? '' : 's'}</div></div>
+    <div class="tile"><div class="lbl">Cobrado ${D.tempAct}</div><div class="num">${eur(D.cobradoTemp)}</div><div class="sub">${D.P.filter(p => temporada(p.fecha) === D.tempAct && p.fecha < D.hoy).length} jugados</div></div>
+    ${prox ? `<div class="tile full next" onclick="abrir('${esc(prox.id)}')" style="cursor:pointer"><div class="when"><span>${DOW[parseD(prox.fecha).getDay()]}</span><b>${parseD(prox.fecha).getDate()}</b><span>${MES[parseD(prox.fecha).getMonth()]}</span></div>
+      <div style="min-width:0"><div class="lbl" style="font-size:12px;color:var(--ink-2)">Próximo partido · ${esc(prox.hora)}${dias(D.hoy, prox.fecha) === 0 ? ' · HOY' : dias(D.hoy, prox.fecha) === 1 ? ' · mañana' : ''}</div>
+      <div style="font-weight:600">${esc(titulo(prox.local))} – ${esc(titulo(prox.visitante))}</div>
+      <div class="sub" style="font-size:12px;color:var(--ink-2)">${esc(titulo(prox.campo))}</div></div></div>` : ''}
+  </div>
+  <div class="seg"><button class="${S.vista === 'proximos' ? 'on' : ''}" onclick="S.vista='proximos';render()">Próximos (${D.proximos.length})</button><button class="${S.vista === 'jugados' ? 'on' : ''}" onclick="S.vista='jugados';render()">Jugados (${D.jugados.length})</button></div>`;
+  const lista = S.vista === 'proximos' ? D.proximos : D.jugados.slice().reverse();
+  if (!lista.length) return h + `<div class="empty">${S.vista === 'proximos' ? 'No tienes designaciones próximas.<br>Pulsa ↻ para buscar en Gmail.' : 'Aún no hay partidos jugados.'}</div>`;
+  let mes = '';
+  lista.forEach(p => {
+    const d = parseD(p.fecha), k = MESL[d.getMonth()] + ' ' + d.getFullYear();
+    if (k !== mes) { h += `<div class="month">${k}</div>`; mes = k; }
+    h += tarjetaPartido(p, D.hoy);
+  });
+  return h;
+}
+
+function vCobros(D) {
+  const pend = D.pendientes;
+  const selTotal = pend.filter(p => S.sel.has(p.id)).reduce((s, p) => s + total(p), 0);
+  let h = `<div class="score" style="margin-top:16px">
+    <div class="tile warn"><div class="lbl">Te deben</div><div class="num">${eur(D.pendTotal)}</div><div class="sub">${pend.length} partidos jugados sin cobrar</div></div>
+    <div class="tile"><div class="lbl">Más antiguo</div><div class="num">${pend.length ? dias(pend[0].fecha, D.hoy) + ' días' : '—'}</div><div class="sub">${pend.length ? 'desde el ' + parseD(pend[0].fecha).getDate() + ' ' + MES[parseD(pend[0].fecha).getMonth()] : 'Todo al día'}</div></div></div>
+  <div class="box"><h3>Ha llegado un pago</h3>
+    <div class="row"><label class="f">Importe recibido (€)<input id="ingImp" inputmode="decimal" placeholder="0,00" oninput="sugerir()"></label>
+    <label class="f">Fecha<input id="ingFecha" type="date" value="${D.hoy}"></label></div>
+    <label class="f">Nota (opcional)<input id="ingNota" placeholder="Transferencia RFAF"></label>
+    <p class="hint" id="sug">Escribe el importe y marco los partidos que lo suman. También puedes marcarlos a mano.</p>
+    <div class="row" style="margin-top:10px"><button class="btn pri" id="btnCobro" onclick="registrarCobro()" ${S.sel.size ? '' : 'disabled'}>Marcar ${S.sel.size || ''} como cobrados · ${eur(selTotal)}</button></div>
+  </div>`;
+  if (!pend.length) h += `<div class="empty">No tienes partidos pendientes de cobro.</div>`;
+  else {
+    h += `<div class="month">Pendientes (del más antiguo)</div>`;
+    pend.forEach(p => {
+      const ds = dias(p.fecha, D.hoy), on = S.sel.has(p.id);
+      h += `<label class="pend ${on ? 'sel' : ''}" data-id="${esc(p.id)}" data-t="${total(p)}"><input type="checkbox" ${on ? 'checked' : ''} onchange="toggleSel('${esc(p.id)}',this.checked)">
+        <div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(titulo(p.local))} – ${esc(titulo(p.visitante))}</div>
+        <div class="hint" style="margin:0">${parseD(p.fecha).getDate()} ${MES[parseD(p.fecha).getMonth()]} · <span class="chip ${ds > S.cfg.avisoDias ? 'old' : 'p'}">hace ${ds} d</span></div></div>
+        <div class="num" style="font-size:19px;font-weight:700">${eur(total(p))}</div></label>`;
+    });
+  }
+  const ings = S.data.ingresos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (ings.length) {
+    h += `<div class="month">Pagos recibidos</div><div class="box">`;
+    ings.forEach(i => {
+      const nn = (i.partidos || '').split(',').filter(Boolean).length;
+      h += `<div class="ing"><div><b>${eur(i.importe)}</b><div class="hint" style="margin:0">${parseD(i.fecha).getDate()} ${MES[parseD(i.fecha).getMonth()]} ${parseD(i.fecha).getFullYear()} · ${nn} partido${nn === 1 ? '' : 's'}${i.nota ? ' · ' + esc(i.nota) : ''}</div></div>
+        <button class="btn danger" onclick="borrarIngreso('${esc(i.id)}')" aria-label="Deshacer">Deshacer</button></div>`;
+    });
+    h += `</div>`;
+  }
+  return h;
+}
+
+function vResumen(D) {
+  const temps = [...new Set(D.P.map(p => temporada(p.fecha)))].sort().reverse();
+  const t = S.filtroTemp && temps.includes(S.filtroTemp) ? S.filtroTemp : (temps[0] || D.tempAct);
+  const P = D.P.filter(p => temporada(p.fecha) === t && p.fecha < D.hoy);
+  const ganado = P.reduce((s, p) => s + total(p), 0);
+  const cobr = P.filter(p => p.estado === 'cobrado');
+  const esperas = cobr.filter(p => p.fechaCobro).map(p => dias(p.fecha, p.fechaCobro));
+  const media = esperas.length ? Math.round(esperas.reduce((a, b) => a + b, 0) / esperas.length) : null;
+  const km = P.reduce((s, p) => s + n(p.km), 0);
+
+  const meses = {};
+  P.forEach(p => { const k = p.fecha.slice(0, 7); meses[k] = meses[k] || { c: 0, p: 0, n: 0 }; meses[k].n++; meses[k][p.estado === 'cobrado' ? 'c' : 'p'] += total(p); });
+  const max = Math.max(1, ...Object.values(meses).map(m => m.c + m.p));
+  const comps = {};
+  P.forEach(p => { comps[p.competicion] = comps[p.competicion] || { n: 0, e: 0 }; comps[p.competicion].n++; comps[p.competicion].e += total(p); });
+
+  let h = `<div class="seg" style="margin-top:16px">${temps.map(x => `<button class="${x === t ? 'on' : ''}" onclick="S.filtroTemp='${x}';render()">${x}</button>`).join('') || `<button class="on">${t}</button>`}</div>
+  <div class="score">
+    <div class="tile"><div class="lbl">Generado</div><div class="num">${eur(ganado)}</div><div class="sub">${P.length} partidos</div></div>
+    <div class="tile"><div class="lbl">Cobrado</div><div class="num">${eur(cobr.reduce((s, p) => s + total(p), 0))}</div><div class="sub">${cobr.length} partidos</div></div>
+    <div class="tile"><div class="lbl">Tarda en pagar</div><div class="num">${media == null ? '—' : media + ' días'}</div><div class="sub">media desde el partido</div></div>
+    <div class="tile"><div class="lbl">Kilometraje</div><div class="num">${eur(km)}</div><div class="sub">incluido en el total</div></div>
+  </div>`;
+  const ks = Object.keys(meses).sort();
+  if (ks.length) {
+    h += `<div class="box"><h3>Por mes</h3><div class="legend"><span>Cobrado</span><span class="p">Pendiente</span></div><div class="bars">`;
+    ks.forEach(k => { const m = meses[k]; h += `<div class="bar"><span>${MES[+k.slice(5) - 1]} ${k.slice(2, 4)}</span><div class="track"><i class="c" style="width:${m.c / max * 100}%"></i><i class="p" style="width:${m.p / max * 100}%"></i></div><b style="text-align:right">${eur(m.c + m.p)}</b></div>`; });
+    h += `</div></div><div class="box"><h3>Por competición</h3><table class="t">`;
+    Object.entries(comps).sort((a, b) => b[1].e - a[1].e).forEach(([c, v]) => { h += `<tr><td>${esc(c)}<div class="hint" style="margin:0">${v.n} partido${v.n === 1 ? '' : 's'}</div></td><td>${eur(v.e)}</td></tr>`; });
+    h += `</table></div>`;
+  } else h += `<div class="empty">Sin partidos jugados en esta temporada.</div>`;
+  return h;
+}
+
+function vAjustes() {
+  const c = S.cfg;
+  return `<div class="box" style="margin-top:16px"><h3>Conexión con Google</h3>
+    <label class="f">URL de la aplicación web (Apps Script)<input id="cfgUrl" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <label class="f">Token<input id="cfgTok" value="${esc(c.token)}" autocomplete="off"></label>
+    <div class="row"><button class="btn pri" onclick="guardarCfg()">Guardar y probar</button></div>
+    <p class="hint" id="cfgMsg">${c.demo ? 'Ahora mismo estás en modo demostración.' : ''}</p></div>
+  <div class="box"><h3>Avisos</h3>
+    <label class="f">Marcar en rojo los pagos pendientes de más de (días)<input id="cfgDias" type="number" min="1" value="${c.avisoDias}" onchange="S.cfg.avisoDias=+this.value||30;LS.set('cfg',S.cfg)"></label></div>
+  <div class="box"><h3>Demostración</h3><p class="hint">Datos de ejemplo para probar la app sin conectar nada.</p>
+    <div class="row" style="margin-top:10px">${c.demo ? `<button class="btn" onclick="activarDemo(false)">Salir del modo demo</button><button class="btn" onclick="LS.set('demoData',null);DEMO=null;cargar()">Reiniciar demo</button>` : `<button class="btn" onclick="activarDemo(true)">Probar con datos de ejemplo</button>`}</div></div>
+  <div class="box"><h3>Exportar</h3><div class="row"><button class="btn" onclick="exportarCSV()">Descargar CSV de partidos</button></div></div>`;
+}
+
+/* ============================ Detalle / edición ============================ */
+function abrir(id) {
+  const p = S.data.partidos.find(x => x.id === id); if (!p) return;
+  const jugado = p.fecha < hoyISO();
+  const mapa = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([p.campo, p.direccion, p.localidad].filter(Boolean).join(', '));
+  const d = parseD(p.fecha);
+  $('#sheetIn').innerHTML = `
+    <div class="hint" style="margin:0 0 4px">${DOW[d.getDay()]} ${d.getDate()} ${MESL[d.getMonth()].toLowerCase()} ${d.getFullYear()} · ${esc(p.hora)} · ${esc(titulo(p.funcion))}</div>
+    <h2>${esc(titulo(p.local))}<br><span style="color:var(--ink-2)">vs</span> ${esc(titulo(p.visitante))}</h2>
+    <dl class="kv">
+      <dt>Competición</dt><dd>${esc(p.competicion)}${p.grupo ? ' · ' + esc(p.grupo) : ''}</dd>
+      <dt>Campo</dt><dd>${esc(titulo(p.campo))}${p.direccion ? '<br><span class="hint">' + esc(p.direccion) + '</span>' : ''}<br><a href="${mapa}" target="_blank" rel="noopener">Abrir en Maps ↗</a></dd>
+      <dt>Designación</dt><dd>${/^\d+$/.test(p.id) ? 'nº ' + esc(p.id) : 'Añadido a mano'}</dd>
+    </dl>
+    <div class="row"><label class="f">Arbitraje<input id="eImp" inputmode="decimal" value="${esc(p.importe)}"></label>
+      <label class="f">Manutención<input id="eMan" inputmode="decimal" value="${esc(p.manutencion)}"></label>
+      <label class="f">Km<input id="eKm" inputmode="decimal" value="${esc(p.km)}"></label></div>
+    <div class="row"><label class="f">Estado<select id="eEst"><option value="pendiente" ${p.estado !== 'cobrado' ? 'selected' : ''}>Pendiente</option><option value="cobrado" ${p.estado === 'cobrado' ? 'selected' : ''}>Cobrado</option></select></label>
+      <label class="f">Fecha de cobro<input id="eFc" type="date" value="${esc(p.fechaCobro)}"></label></div>
+    <label class="f">Notas<textarea id="eNot" rows="2">${esc(p.notas)}</textarea></label>
+    ${jugado && p.estado !== 'cobrado' ? `<p class="hint">Jugado hace ${dias(p.fecha, hoyISO())} días y aún sin cobrar.</p>` : ''}
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="$('#sheet').close()">Cerrar</button><button class="btn pri" onclick="guardarPartido('${esc(p.id)}')">Guardar</button></div>
+    <div class="row" style="margin-top:6px"><button class="btn danger" onclick="borrarPartido('${esc(p.id)}')">No lo arbitro (me lo quitaron / anulado)</button></div>`;
+  $('#sheet').showModal();
+}
+async function guardarPartido(id) {
+  const imp = $('#eImp').value, man = $('#eMan').value, km = $('#eKm').value;
+  let est = $('#eEst').value, fc = $('#eFc').value;
+  if (est === 'cobrado' && !fc) fc = hoyISO();
+  const campos = { importe: n(imp).toFixed(2), manutencion: n(man).toFixed(2), km: n(km).toFixed(2), total: (n(imp) + n(man) + n(km)).toFixed(2), estado: est, fechaCobro: est === 'cobrado' ? fc : '', notas: $('#eNot').value };
+  if (await accion('update', { id, campos }, 'Guardado')) $('#sheet').close();
+}
+async function borrarPartido(id) {
+  if (!confirm('¿Quitar este partido? Se borra del calendario y no volverá a importarse del correo.')) return;
+  if (await accion('delete', { id }, 'Partido quitado')) $('#sheet').close();
+}
+function nuevoPartido() {
+  $('#sheetIn').innerHTML = `<h2>Añadir partido</h2><p class="hint">Para designaciones que no te llegaron por correo.</p>
+    <div class="row"><label class="f">Fecha<input id="nF" type="date" value="${hoyISO()}"></label><label class="f">Hora<input id="nH" type="time" value="12:00"></label></div>
+    <label class="f">Equipo local<input id="nL"></label><label class="f">Equipo visitante<input id="nV"></label>
+    <label class="f">Competición<input id="nC"></label>
+    <div class="row"><label class="f">Campo<input id="nCa"></label><label class="f">Localidad<input id="nLo"></label></div>
+    <div class="row"><label class="f">Función<select id="nFu"><option>ARBITRO</option><option>ASISTENTE 1</option><option>ASISTENTE 2</option><option>CUARTO ARBITRO</option></select></label></div>
+    <div class="row"><label class="f">Arbitraje<input id="nI" inputmode="decimal"></label><label class="f">Manut.<input id="nM" inputmode="decimal" value="0"></label><label class="f">Km<input id="nK" inputmode="decimal" value="0"></label></div>
+    <div class="row" style="margin-top:12px"><button class="btn" onclick="$('#sheet').close()">Cancelar</button><button class="btn pri" onclick="crearPartido()">Añadir</button></div>`;
+  $('#sheet').showModal();
+}
+async function crearPartido() {
+  const v = id => $(id).value.trim();
+  if (!v('#nL') || !v('#nV')) return toast('Pon los dos equipos');
+  const i = n(v('#nI')), m = n(v('#nM')), k = n(v('#nK'));
+  const campos = { fecha: v('#nF'), hora: v('#nH'), local: v('#nL'), visitante: v('#nV'), competicion: v('#nC'), campo: v('#nCa'), localidad: v('#nLo'), funcion: v('#nFu'), importe: i.toFixed(2), manutencion: m.toFixed(2), km: k.toFixed(2), total: (i + m + k).toFixed(2) };
+  if (await accion('add', { campos }, 'Partido añadido')) $('#sheet').close();
+}
+
+/* ============================ Cobros ============================ */
+function selUI() {
+  let t = 0;
+  document.querySelectorAll('.pend').forEach(el => {
+    const on = S.sel.has(el.dataset.id);
+    el.classList.toggle('sel', on); el.querySelector('input').checked = on;
+    if (on) t += +el.dataset.t;
+  });
+  const b = $('#btnCobro');
+  if (b) { b.disabled = !S.sel.size; b.textContent = `Marcar ${S.sel.size || ''} como cobrados · ${eur(t)}`; }
+}
+function toggleSel(id, on) { on ? S.sel.add(id) : S.sel.delete(id); selUI(); }
+function sugerir() {
+  const v = $('#ingImp').value, m = $('#sug');
+  if (!n(v)) { m.className = 'hint'; m.textContent = 'Escribe el importe y marco los partidos que lo suman.'; S.sel.clear(); selUI(); return; }
+  const r = cuadrar(v, derivados().pendientes);
+  S.sel = new Set(r ? r.ids : []);
+  selUI();
+  if (r && r.exacto) { m.className = 'hint ok'; m.textContent = `✓ Cuadra exacto con ${r.ids.length} partido${r.ids.length === 1 ? '' : 's'}. Revisa la selección y confirma.`; }
+  else if (r) { m.className = 'hint bad'; m.textContent = `No cuadra exacto. Lo más cercano: ${eur(r.suma)} (diferencia ${eur(n(v) - r.suma)}). Ajusta a mano.`; }
+  else { m.className = 'hint bad'; m.textContent = 'Ninguna combinación de pendientes llega a ese importe.'; }
+}
+async function registrarCobro() {
+  const ids = [...S.sel]; if (!ids.length) return;
+  const D = derivados();
+  const suma = D.pendientes.filter(p => S.sel.has(p.id)).reduce((s, p) => s + total(p), 0);
+  const imp = n($('#ingImp').value) || suma;
+  const ok = await accion('cobro', { ids, importe: imp.toFixed(2), fecha: $('#ingFecha').value || hoyISO(), nota: $('#ingNota').value }, `${ids.length} partido(s) cobrados`);
+  if (ok) { S.sel.clear(); render(); }
+}
+async function borrarIngreso(id) {
+  if (!confirm('¿Deshacer este pago? Sus partidos volverán a pendientes.')) return;
+  accion('deleteIngreso', { id }, 'Pago deshecho');
+}
+
+/* ============================ Ajustes ============================ */
+async function guardarCfg() {
+  S.cfg.url = $('#cfgUrl').value.trim(); S.cfg.token = $('#cfgTok').value.trim(); S.cfg.demo = false;
+  LS.set('cfg', S.cfg);
+  const msg = $('#cfgMsg'); msg.className = 'hint'; msg.textContent = 'Probando…';
+  try { const d = await api('list'); guardar(d); toast('Conectado ✓'); S.tab = 'partidos'; render(); }
+  catch (e) { msg.className = 'hint bad'; msg.textContent = 'No se pudo conectar: ' + e.message; }
+}
+function activarDemo(on) {
+  S.cfg.demo = on; LS.set('cfg', S.cfg);
+  if (!on) { S.data = { partidos: [], ingresos: [] }; LS.set('data', S.data); }
+  S.tab = 'partidos'; render(); cargar();
+}
+function exportarCSV() {
+  const cols = ['id', 'fecha', 'hora', 'funcion', 'competicion', 'local', 'visitante', 'campo', 'localidad', 'importe', 'manutencion', 'km', 'total', 'estado', 'fechaCobro', 'notas'];
+  const csv = [cols.join(';')].concat(S.data.partidos.map(p => cols.map(c => '"' + String(p[c] ?? '').replace(/"/g, '""') + '"').join(';'))).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' })); a.download = 'partidos.csv'; a.click();
+}
+function irA(t) { S.tab = t; render(); window.scrollTo(0, 0); }
+
+/* ============================ Arranque ============================ */
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => irA(b.dataset.tab));
+$('#syncBtn').onclick = () => cargar('sync');
+$('#fab').onclick = nuevoPartido;
+$('#sheet').addEventListener('click', e => { if (e.target.id === 'sheet') e.target.close(); });
+render();
+if (S.cfg.demo || (S.cfg.url && S.cfg.token)) cargar();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && (S.cfg.demo || S.cfg.url)) cargar(); });
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
