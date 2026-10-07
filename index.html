@@ -264,7 +264,7 @@ const S = {
   cfg: LS.get('cfg', { url: '', token: '', demo: false, avisoDias: 30 }),
   data: Object.assign({ partidos: [], ingresos: [], perfil: PERFIL_DEF, distancias: {}, combustible: {}, ipc: {} }, LS.get('data', {})),
   tab: 'partidos', vista: 'proximos', sel: new Set(), filtroTemp: null,
-  abiertos: LS.get('abiertos', {}), desglose: LS.get('desglose', 'mes'), tema: LS.get('tema', 'costa'),
+  abiertos: LS.get('abiertos', {}), desglose: LS.get('desglose', 'mes'), tema: LS.get('tema', 'costa'), cuotasTab: LS.get('cuotasTab', 'arb'),
 };
 
 /* ============================ Utilidades ============================ */
@@ -299,16 +299,39 @@ function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.ad
 async function api(action, body) {
   if (S.cfg.demo) return demoApi(action, body);
   if (!S.cfg.url || !S.cfg.token) throw new Error('Configura la conexión en Ajustes');
-  let r;
-  if (!body) {
-    r = await fetch(S.cfg.url + '?action=' + action + '&token=' + encodeURIComponent(S.cfg.token));
-  } else {
-    r = await fetch(S.cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.cfg.token }, body)) });
+  if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(S.cfg.url)) throw new Error('La URL no es correcta: debe empezar por https://script.google.com/ y terminar en /exec');
+  let r, texto;
+  try {
+    r = !body
+      ? await fetch(S.cfg.url + '?action=' + action + '&token=' + encodeURIComponent(S.cfg.token))
+      : await fetch(S.cfg.url, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.cfg.token }, body)) });
+    texto = await r.text();
+  } catch (e) {
+    throw new Error(navigator.onLine === false ? 'No tienes conexión a internet. Se muestran los últimos datos guardados.' : 'No se ha podido contactar con tu Google. Inténtalo de nuevo en un momento.');
   }
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'Error del servidor');
+  let j;
+  try { j = JSON.parse(texto); }
+  catch (e) {
+    // Google devuelve una página web en vez de datos: permisos, URL antigua o script con error
+    if (/accounts\.google\.com|ServiceLogin|signin/i.test(texto)) throw new Error('Google pide iniciar sesión: revisa que la implementación tenga acceso "Cualquier usuario".');
+    if (/no se puede abrir|unable to open|not found|no se ha encontrado/i.test(texto)) throw new Error('No se encuentra el script. Revisa la URL en Ajustes (puede que hayas creado una implementación nueva).');
+    throw new Error('Google no ha respondido bien. Prueba otra vez; si sigue, revisa la URL y el token en Ajustes.');
+  }
+  if (!j.ok) throw new Error(errorAmable(j.error));
   return j.data;
 }
+function errorAmable(m) {
+  m = String(m || '');
+  if (/token/i.test(m)) return 'El token no es correcto. Cópialo otra vez en Ajustes.';
+  if (/setup/i.test(m)) return 'Falta instalar el script: ejecuta setup() en Apps Script.';
+  if (/no encontrado/i.test(m)) return 'Ese partido ya no existe. Actualiza con ↻.';
+  if (/quota|cuota|limit/i.test(m)) return 'Google ha llegado a su límite diario. Prueba más tarde.';
+  if (/permission|permiso|authoriz/i.test(m)) return 'Faltan permisos: ejecuta probarFuentes() en Apps Script y acéptalos.';
+  return 'Algo ha fallado en el servidor (' + m.slice(0, 80) + ').';
+}
+// Último recurso: cualquier error inesperado se muestra con un mensaje normal, nunca la pantalla rota
+window.addEventListener('error', () => toast('Algo ha fallado. Recarga la app si ves algo raro.'));
+window.addEventListener('unhandledrejection', ev => { ev.preventDefault(); toast(ev.reason && ev.reason.message ? ev.reason.message : 'Algo ha fallado.'); });
 function guardar(data) {
   if (!data) return;
   S.data = { partidos: data.partidos || [], ingresos: data.ingresos || [], perfil: Object.assign({}, PERFIL_DEF, data.perfil || {}),
@@ -325,6 +348,14 @@ async function cargar(accion = 'list') {
   } catch (e) { toast(e.message); }
   finally { b.classList.remove('spin'); }
 }
+/** Número escrito por la persona: acepta coma o punto, espacios y el símbolo €. Devuelve null si no es válido. */
+function leerNum(v) {
+  const t = String(v ?? '').replace(/[€\s]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
+  if (t === '') return 0;
+  const x = Number(t);
+  return isFinite(x) && x >= 0 ? x : null;
+}
+const conComa = v => String(v ?? '').replace('.', ',');
 async function accion(action, body, ok) {
   try { guardar(await api(action, body)); if (ok) toast(ok); return true; }
   catch (e) { toast(e.message); return false; }
@@ -414,7 +445,8 @@ function render() {
   $('#fab').hidden = S.tab !== 'partidos';
   const m = $('#main');
   if (!S.cfg.demo && (!S.cfg.url || !S.cfg.token) && S.tab !== 'ajustes') { m.innerHTML = bienvenida(); return; }
-  m.innerHTML = { partidos: vPartidos, cobros: vCobros, resumen: vResumen, ajustes: vAjustes }[S.tab](D);
+  try { m.innerHTML = { partidos: vPartidos, cobros: vCobros, resumen: vResumen, ajustes: vAjustes }[S.tab](D); }
+  catch (e) { console.error(e); m.innerHTML = `<div class="box"><h3>Ups</h3><p class="hint">No se ha podido mostrar esta pantalla. Pulsa ↻ para recargar los datos.</p></div>`; }
 }
 
 function bienvenida() {
@@ -505,12 +537,23 @@ function vResumen(D) {
   P.forEach(p => { const r = rolDe(p) === 'a' ? 'a' : 'p'; fn[r].n++; fn[r].e += total(p); });
   const fnTot = fn.p.e + fn.a.e || 1;
   const kmCob = P.reduce((s, p) => s + n(p.km), 0);
+  // Medias: desde el primer partido de la temporada hasta el último jugado
+  const M = { partido: 0, semana: 0, mes: 0, semanas: 0, meses: 0 };
+  if (P.length) {
+    const f0 = parseD(P[0].fecha), f1 = parseD(P[P.length - 1].fecha);
+    const lunes = d => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+    M.semanas = Math.round((lunes(f1) - lunes(f0)) / (7 * 864e5)) + 1;
+    M.meses = (f1.getFullYear() - f0.getFullYear()) * 12 + f1.getMonth() - f0.getMonth() + 1;
+    M.partido = ganado / P.length; M.semana = ganado / M.semanas; M.mes = ganado / M.meses;
+  }
 
   let h = `<div class="seg">${temps.map(x => `<button class="${x === t ? 'on' : ''}" onclick="S.filtroTemp='${x}';render()">${x}</button>`).join('') || `<button class="on">${t}</button>`}</div>
   <div class="score">
     <div class="tile blue"><div class="lbl">Generado</div><div class="num">${eur(ganado)}</div><div class="sub">${P.length} partidos</div></div>
     <div class="tile"><div class="lbl">Cobrado</div><div class="num">${eur(cobr.reduce((s, p) => s + total(p), 0))}</div><div class="sub">${cobr.length} partidos</div></div>
-    <div class="tile ${K.pct != null && K.pct < 95 ? 'warn' : ''}"><div class="lbl">Km que te pagan</div><div class="num">${K.pct == null ? '—' : K.pct + ' %'}</div><div class="sub">${K.pct == null ? (K.viajes ? 'calculando distancias…' : 'sin viajes con km') : 'de los km reales por carretera'}</div></div>
+    <div class="tile warn"><div class="lbl">Media por partido</div><div class="num">${eur(M.partido)}</div><div class="sub">${P.length} partidos</div></div>
+    <div class="tile"><div class="lbl">Media por semana</div><div class="num">${eur(M.semana)}</div><div class="sub">en ${M.semanas} semana${M.semanas === 1 ? '' : 's'}</div></div>
+    <div class="tile"><div class="lbl">Media al mes</div><div class="num">${eur(M.mes)}</div><div class="sub">en ${M.meses} mes${M.meses === 1 ? '' : 'es'}</div></div>
     <div class="tile"><div class="lbl">Kilometraje cobrado</div><div class="num">${eur(kmCob)}</div><div class="sub">${K.coste != null ? 'te ha costado ' + eur(K.coste) + ' en ' + (perfil().combustible === 'gasolina' ? 'gasolina' : 'gasóleo') : 'en la temporada'}</div></div>
   </div>`;
   if (!P.length) return h + `<div class="empty">Sin partidos jugados en esta temporada.</div>` + cajaCuotas(D);
@@ -630,36 +673,39 @@ function cajaKm(K) {
   return desp('km', 'Kilometraje', K.pct + ' % pagado', h);
 }
 
-/* ---------- ¿Han subido las cuotas? (arbitraje + manutención, sin km) ---------- */
+/* ---------- ¿Han subido las cuotas? Arbitraje (por categoría) y manutención (por pueblo), sin km ---------- */
 function cajaCuotas(D) {
   const hoy = D.hoy;
   const P = D.P.filter(p => p.fecha < hoy && p.origen !== 'manual');
   const temps = [...new Set(P.map(p => temporada(p.fecha)))].sort();
   if (temps.length < 2) return '';
-  const moda = arr => { const c = {}; arr.forEach(x => c[x] = (c[x] || 0) + 1); return +Object.keys(c).sort((a, b) => c[b] - c[a])[0]; };
+  const moda = arr => { const c = {}; arr.forEach(x => c[x] = (c[x] || 0) + 1); return +Object.keys(c).sort((a, b) => c[b] - c[a] || b - a)[0]; };
   const cat = p => String(p.categoria || p.competicion).replace(/\s*\(.*$/, '').replace(/\s+E\.F\..*$/i, '').trim();
   const ipc = S.data.ipc || {};
   const meses = Object.keys(ipc).sort();
-  // IPC entre septiembre de la primera temporada y septiembre de la última (o el último dato)
   const ipcEntre = (t0, t1) => {
     const a = meses.find(m => m >= parseInt(t0, 10) + '-09'), b = meses.filter(m => m <= parseInt(t1, 10) + '-09').pop();
     return a && b && b > a ? { v: ipc[b] / ipc[a] - 1, a, b } : null;
   };
-  // Se compara el mismo partido tipo: misma categoría, función y localidad (la manutención depende de la distancia)
-  const G = {};
-  P.forEach(p => {
-    const k = cat(p) + '|' + rolDe(p) + '|' + locN(p.localidad);
-    const g = G[k] = G[k] || { cat: titulo(cat(p)), rol: rolDe(p), loc: pueblo(p.localidad), n: 0, t: {} };
-    g.n++;
-    (g.t[temporada(p.fecha)] = g.t[temporada(p.fecha)] || []).push(+(n(p.importe) + n(p.manutencion)).toFixed(2));
-  });
-  const filas = Object.values(G).map(g => {
-    const ts = temps.filter(t => g.t[t]);
-    const v = {}; ts.forEach(t => v[t] = moda(g.t[t]));
-    const ini = v[ts[0]], fin = v[ts[ts.length - 1]];
-    return Object.assign(g, { ts, v, ini, fin, sub: ini ? fin / ini - 1 : null, ipc: ts.length >= 2 ? ipcEntre(ts[0], ts[ts.length - 1]) : null });
-  }).filter(g => g.ts.length >= 2 && g.ini > 0).sort((a, b) => b.n - a.n);
-  if (!filas.length) return '';
+  // Agrupa y saca el valor más habitual de cada temporada
+  const agrupar = (clave, info, valor) => {
+    const G = {};
+    P.forEach(p => {
+      const k = clave(p); if (!k) return;
+      const g = G[k] = G[k] || Object.assign({ n: 0, t: {} }, info(p));
+      g.n++;
+      (g.t[temporada(p.fecha)] = g.t[temporada(p.fecha)] || []).push(valor(p));
+    });
+    return Object.values(G).map(g => {
+      const ts = temps.filter(t => g.t[t]);
+      const v = {}; ts.forEach(t => v[t] = moda(g.t[t]));
+      const ini = v[ts[0]], fin = v[ts[ts.length - 1]];
+      return Object.assign(g, { ts, v, ini, fin, dif: fin - ini, sub: ini > 0 ? fin / ini - 1 : null,
+        ipc: ts.length >= 2 ? ipcEntre(ts[0], ts[ts.length - 1]) : null });
+    }).filter(g => g.ts.length >= 2 && !(g.ini === 0 && g.fin === 0)).sort((a, b) => a.rol.localeCompare(b.rol) || b.n - a.n);
+  };
+  const arb = agrupar(p => n(p.importe) > 0 ? cat(p) + '|' + rolDe(p) : null, p => ({ nombre: titulo(cat(p)), rol: rolDe(p) }), p => +n(p.importe).toFixed(2));
+  const man = agrupar(p => locN(p.localidad) + '|' + rolDe(p), p => ({ nombre: pueblo(p.localidad), rol: rolDe(p) }), p => +n(p.manutencion).toFixed(2));
 
   const KL = {};
   P.forEach(p => { if (n(p.kmRfaf) > n(perfil().kmUrbano)) { const k = locN(p.localidad); (KL[k] = KL[k] || {})[temporada(p.fecha)] = n(p.kmRfaf); } });
@@ -667,24 +713,32 @@ function cajaCuotas(D) {
   const kmVar = kmCmp.length ? kmCmp.reduce((a, b) => a + b, 0) / kmCmp.length : null;
   const ipcG = ipcEntre(temps[0], temps[temps.length - 1]);
   const pct = x => (x >= 0 ? '+' : '') + (x * 100).toFixed(x !== 0 && Math.abs(x) < 0.1 ? 1 : 0).replace('.', ',') + ' %';
-  const subs = filas.map(g => g.sub).sort((a, b) => a - b);
-  const mediana = subs[Math.floor(subs.length / 2)];
+  const mediana = arr => { const v = arr.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor(v.length / 2)] : null; };
+  const mArb = mediana(arb.map(g => g.sub)), mMan = mediana(man.map(g => g.sub));
   const mesTxt = m => MES[+m.slice(5) - 1] + ' ' + m.slice(0, 4);
+  const pestaña = S.cuotasTab === 'man' ? 'man' : 'arb';
+  const filas = pestaña === 'man' ? man : arb;
+  const fmt = x => x.toFixed(2).replace('.', ',');
 
-  let h = `<div class="fn" style="grid-template-columns:repeat(3,1fr)">
-      <div><div class="k">Cuota</div><div class="num">${pct(mediana)}</div><div class="hint" style="margin:0">arbitraje + manutención</div></div>
-      <div><div class="k a">IPC</div><div class="num">${ipcG ? pct(ipcG.v) : '—'}</div><div class="hint" style="margin:0">${ipcG ? mesTxt(ipcG.a) + ' → ' + mesTxt(ipcG.b) : 'sin datos aún'}</div></div>
+  let h = `<div class="fn" style="grid-template-columns:1fr 1fr;row-gap:14px">
+      <div><div class="k">Arbitraje</div><div class="num">${mArb == null ? '—' : pct(mArb)}</div><div class="hint" style="margin:0">subida típica</div></div>
+      <div><div class="k a">Manutención</div><div class="num">${mMan == null ? '—' : pct(mMan)}</div><div class="hint" style="margin:0">subida típica</div></div>
+      <div><div class="k c">IPC</div><div class="num">${ipcG ? pct(ipcG.v) : '—'}</div><div class="hint" style="margin:0">${ipcG ? mesTxt(ipcG.a) + ' → ' + mesTxt(ipcG.b) : 'sin datos aún'}</div></div>
       <div><div class="k c">Km</div><div class="num">${kmVar == null ? '—' : pct(kmVar)}</div><div class="hint" style="margin:0">mismo pueblo</div></div>
     </div>
-    <table class="t" style="margin-top:12px"><tr><td></td>${temps.map(t => `<td style="text-align:right;color:var(--ink-2);font-weight:600;font-size:11px;padding-left:8px">${t.slice(2)}</td>`).join('')}<td style="color:var(--ink-2);font-weight:600;font-size:11px;padding-left:8px">Subida</td></tr>`;
+    <div class="seg" style="margin:16px 0 6px"><button class="${pestaña === 'arb' ? 'on' : ''}" onclick="S.cuotasTab='arb';LS.set('cuotasTab','arb');render()">Arbitraje</button><button class="${pestaña === 'man' ? 'on' : ''}" onclick="S.cuotasTab='man';LS.set('cuotasTab','man');render()">Manutención</button></div>
+    <p class="hint" style="margin:0 0 4px">${pestaña === 'arb' ? 'Lo que pagan por categoría, igual en cualquier pueblo.' : 'Lo que pagan de manutención en cada pueblo.'}</p>
+    <table class="t"><tr><td></td>${temps.map(t => `<td style="text-align:right;color:var(--ink-2);font-weight:600;font-size:11px;padding-left:8px">${t.slice(2)}</td>`).join('')}<td style="color:var(--ink-2);font-weight:600;font-size:11px;padding-left:8px;text-align:right">Subida<br>/ IPC</td></tr>`;
+  if (!filas.length) h += `<tr><td colspan="${temps.length + 2}" class="hint">No hay datos de dos temporadas para comparar.</td></tr>`;
   filas.forEach(g => {
-    const debe = g.ipc ? g.ini * (1 + g.ipc.v) : null;
-    const pierde = g.ipc && g.sub < g.ipc.v;
-    h += `<tr><td><span class="rol ${g.rol}">${ROL_TXT[g.rol].slice(0, 5)}.</span>${esc(g.cat)} · ${esc(g.loc)}${pierde ? `<div class="hint bad" style="margin:0">por la inflación debería haber subido a ${eur(debe)}</div>` : ''}</td>
-      ${temps.map(t => `<td style="text-align:right;font-weight:500;padding-left:8px">${g.v[t] != null ? g.v[t].toFixed(2).replace('.', ',') : '·'}</td>`).join('')}
-      <td style="padding-left:8px;white-space:nowrap;color:${pierde ? 'var(--red)' : 'var(--ok)'}">${pct(g.sub)}</td></tr>`;
+    const debe = g.ipc && g.ini > 0 ? g.ini * (1 + g.ipc.v) : null;
+    const pierde = g.ipc && (g.sub == null ? g.dif <= 0 : g.sub < g.ipc.v);
+    const subTxt = g.sub == null ? (g.dif >= 0 ? '+' : '') + fmt(g.dif) + ' €' : pct(g.sub);
+    h += `<tr><td><span class="rol ${g.rol}">${ROL_TXT[g.rol].slice(0, 5)}.</span>${esc(g.nombre)}<span class="hint" style="font-size:11px"> · ${g.n}</span>${pierde && debe ? `<div class="hint bad" style="margin:0">por la inflación debería haber subido a ${eur(debe)}</div>` : ''}</td>
+      ${temps.map(t => `<td style="text-align:right;font-weight:500;padding-left:8px">${g.v[t] != null ? fmt(g.v[t]) : '·'}</td>`).join('')}
+      <td style="padding-left:8px;white-space:nowrap;text-align:right"><span style="color:${pierde ? 'var(--red)' : 'var(--ok)'}">${subTxt}</span>${g.ipc ? `<div class="hint" style="margin:0;font-size:11px;font-weight:500">IPC ${pct(g.ipc.v)}</div>` : ''}</td></tr>`;
   });
-  h += `</table><p class="hint">En rojo lo que ha subido menos que el IPC.</p>`;
+  h += `</table><p class="hint">En rojo lo que ha subido menos que el IPC. Cada fila se compara con el IPC de sus mismas temporadas. El número junto al nombre son tus partidos.</p>`;
   return desp('cuotas', '¿Han subido las cuotas?', '(sin contar kilometraje)', h);
 }
 
@@ -694,12 +748,12 @@ function vAjustes() {
   const resto = Object.keys(PROVINCIAS).filter(k => !ANDALUCIA.includes(k)).sort((a, b) => PROVINCIAS[a].localeCompare(PROVINCIAS[b]));
   return `<div class="box" style="margin-top:16px"><h3>Mi perfil</h3>
     <p class="hint" style="margin:-4px 0 12px">Con estos datos se calcula lo que te cuesta de verdad cada desplazamiento.</p>
-    <label class="f">Desde dónde sales a los partidos<input id="pfOrigen" value="${esc(pf.origen)}" placeholder="Jaén, o tu dirección"></label>
+    <label class="f">Desde dónde sales <span style="opacity:.7">· tu dirección exacta da distancias más reales</span><input id="pfOrigen" value="${esc(pf.origen)}" placeholder="Calle y número, Jaén"></label>
     <label class="f">Provincia (para el precio del combustible)<select id="pfProv"><optgroup label="Andalucía">${provOpts(ANDALUCIA)}</optgroup><optgroup label="Resto de España">${provOpts(resto)}</optgroup></select></label>
     <div class="row"><label class="f">Combustible<select id="pfComb"><option value="diesel" ${pf.combustible !== 'gasolina' ? 'selected' : ''}>Diésel</option><option value="gasolina" ${pf.combustible === 'gasolina' ? 'selected' : ''}>Gasolina</option></select></label>
-      <label class="f">Consumo (l/100 km)<input id="pfCons" inputmode="decimal" value="${esc(pf.consumo)}"></label></div>
-    <div class="row"><label class="f">Tarifa RFAF (€/km)<input id="pfTarifa" inputmode="decimal" value="${esc(pf.tarifaKm)}"></label>
-      <label class="f">Km urbano (€) <span style="opacity:.7">se paga siempre</span><input id="pfUrb" inputmode="decimal" value="${esc(pf.kmUrbano)}"></label></div>
+      <label class="f">Consumo (l/100 km)<input id="pfCons" inputmode="decimal" value="${esc(conComa(pf.consumo))}"></label></div>
+    <div class="row"><label class="f">Tarifa RFAF (€/km)<input id="pfTarifa" inputmode="decimal" value="${esc(conComa(pf.tarifaKm))}"></label>
+      <label class="f">Km urbano (€) <span style="opacity:.7">se paga siempre</span><input id="pfUrb" inputmode="decimal" value="${esc(conComa(pf.kmUrbano))}"></label></div>
     <div class="row"><button class="btn pri" onclick="guardarPerfil()">Guardar perfil</button></div>
     <p class="hint" id="pfMsg"></p></div>
   <div class="box"><h3>Colores</h3><div class="temas">${Object.entries(TEMAS).map(([k, t]) => {
@@ -729,9 +783,9 @@ function abrir(id) {
       <dt>Designación</dt><dd>${/^\d+$/.test(p.id) ? 'nº ' + esc(p.id) : 'Añadido a mano'}</dd>
       ${equipoHtml(p)}
     </dl>
-    <div class="row"><label class="f">Arbitraje<input id="eImp" inputmode="decimal" value="${esc(p.importe)}"></label>
-      <label class="f">Manutención<input id="eMan" inputmode="decimal" value="${esc(p.manutencion)}"></label>
-      <label class="f">Km<input id="eKm" inputmode="decimal" value="${esc(p.km)}" oninput="kmEditado()"></label></div>
+    <div class="row"><label class="f">Arbitraje<input id="eImp" inputmode="decimal" value="${esc(conComa(p.importe))}"></label>
+      <label class="f">Manutención<input id="eMan" inputmode="decimal" value="${esc(conComa(p.manutencion))}"></label>
+      <label class="f">Km<input id="eKm" inputmode="decimal" value="${esc(conComa(p.km))}" oninput="kmEditado()"></label></div>
     <label class="f">Kilometraje<select id="eKmModo" onchange="kmModo('${esc(p.id)}')">
       <option value="" ${!p.kmModo ? 'selected' : ''}>Automático</option>
       <option value="si" ${p.kmModo === 'si' ? 'selected' : ''}>Sí lo cobro</option>
@@ -759,22 +813,23 @@ function kmTexto(p, modo) {
 }
 function kmModo(id) {
   const p = S.data.partidos.find(x => x.id === id); const m = $('#eKmModo').value;
-  if (m === 'no') $('#eKm').value = '0.00';
-  if (m === 'si' && !n($('#eKm').value)) $('#eKm').value = n(p.kmRfaf || p.km).toFixed(2);
-  if (m === '') $('#eKm').value = p.km;
+  if (m === 'no') $('#eKm').value = '0,00';
+  if (m === 'si' && !leerNum($('#eKm').value)) $('#eKm').value = conComa(n(p.kmRfaf || p.km).toFixed(2));
+  if (m === '') $('#eKm').value = conComa(p.km);
   $('#kmHint').textContent = kmTexto(p, m);
 }
 // Si escribes el km a mano, se entiende que lo decides tú
 function kmEditado() {
   const sel = $('#eKmModo'); if (sel.value) return;
-  sel.value = n($('#eKm').value) > 0 ? 'si' : 'no';
+  sel.value = (leerNum($('#eKm').value) || 0) > 0 ? 'si' : 'no';
   $('#kmHint').textContent = 'Has cambiado el km a mano: queda fijado así (' + (sel.value === 'si' ? 'Sí lo cobro' : 'No lo cobro') + ').';
 }
 async function guardarPartido(id) {
-  const imp = $('#eImp').value, man = $('#eMan').value, km = $('#eKm').value;
+  const imp = leerNum($('#eImp').value), man = leerNum($('#eMan').value), km = leerNum($('#eKm').value);
+  if (imp == null || man == null || km == null) return toast('Revisa los importes: escribe solo cifras, por ejemplo 14,86');
   let est = $('#eEst').value, fc = $('#eFc').value;
   if (est === 'cobrado' && !fc) fc = hoyISO();
-  const campos = { importe: n(imp).toFixed(2), manutencion: n(man).toFixed(2), km: n(km).toFixed(2), total: (n(imp) + n(man) + n(km)).toFixed(2), estado: est, fechaCobro: est === 'cobrado' ? fc : '', kmModo: $('#eKmModo').value };
+  const campos = { importe: imp.toFixed(2), manutencion: man.toFixed(2), km: km.toFixed(2), total: (imp + man + km).toFixed(2), estado: est, fechaCobro: est === 'cobrado' ? fc : '', kmModo: $('#eKmModo').value };
   if (await accion('update', { id, campos }, 'Guardado')) $('#sheet').close();
 }
 async function borrarPartido(id) {
@@ -795,7 +850,9 @@ function nuevoPartido() {
 async function crearPartido() {
   const v = id => $(id).value.trim();
   if (!v('#nL') || !v('#nV')) return toast('Pon los dos equipos');
-  const i = n(v('#nI')), m = n(v('#nM')), k = n(v('#nK'));
+  const i = leerNum(v('#nI')), m = leerNum(v('#nM')), k = leerNum(v('#nK'));
+  if (i == null || m == null || k == null) return toast('Revisa los importes: escribe solo cifras, por ejemplo 14,86');
+  if (!v('#nF')) return toast('Pon la fecha del partido');
   const campos = { fecha: v('#nF'), hora: v('#nH'), local: v('#nL'), visitante: v('#nV'), competicion: v('#nC'), campo: v('#nCa'), localidad: v('#nLo'), funcion: v('#nFu'), importe: i.toFixed(2), manutencion: m.toFixed(2), km: k.toFixed(2), total: (i + m + k).toFixed(2) };
   if (await accion('add', { campos }, 'Partido añadido')) $('#sheet').close();
 }
@@ -815,19 +872,20 @@ function selUI() {
 function toggleSel(id, on) { on ? S.sel.add(id) : S.sel.delete(id); selUI(); }
 function sugerir() {
   const v = $('#ingImp').value, m = $('#sug');
-  if (!n(v)) { m.className = 'hint'; m.textContent = 'Escribe el importe y marco los partidos que lo suman.'; S.sel.clear(); selUI(); return; }
-  const r = cuadrar(v, derivados().pendientes);
+  if (leerNum(v) == null) { m.className = 'hint bad'; m.textContent = 'Escribe solo cifras, por ejemplo 52,96.'; return; }
+  if (!leerNum(v)) { m.className = 'hint'; m.textContent = 'Escribe el importe y marco los partidos que lo suman.'; S.sel.clear(); selUI(); return; }
+  const r = cuadrar(leerNum(v), derivados().pendientes);
   S.sel = new Set(r ? r.ids : []);
   selUI();
   if (r && r.exacto) { m.className = 'hint ok'; m.textContent = `✓ Cuadra exacto con ${r.ids.length} partido${r.ids.length === 1 ? '' : 's'}. Revisa la selección y confirma.`; }
-  else if (r) { m.className = 'hint bad'; m.textContent = `No cuadra exacto. Lo más cercano: ${eur(r.suma)} (diferencia ${eur(n(v) - r.suma)}). Ajusta a mano.`; }
+  else if (r) { m.className = 'hint bad'; m.textContent = `No cuadra exacto. Lo más cercano: ${eur(r.suma)} (diferencia ${eur(leerNum(v) - r.suma)}). Ajusta a mano.`; }
   else { m.className = 'hint bad'; m.textContent = 'Ninguna combinación de pendientes llega a ese importe.'; }
 }
 async function registrarCobro() {
   const ids = [...S.sel]; if (!ids.length) return;
   const D = derivados();
   const suma = D.pendientes.filter(p => S.sel.has(p.id)).reduce((s, p) => s + total(p), 0);
-  const imp = n($('#ingImp') && $('#ingImp').value) || suma;
+  const imp = ($('#ingImp') && leerNum($('#ingImp').value)) || suma;
   const ok = await accion('cobro', { ids, importe: imp.toFixed(2), fecha: ($('#ingFecha') && $('#ingFecha').value) || hoyISO(), nota: ($('#ingNota') && $('#ingNota').value) || '' }, `${ids.length} partido(s) cobrados`);
   if (ok) { S.sel.clear(); render(); }
 }
@@ -839,18 +897,23 @@ async function borrarIngreso(id) {
 /* ============================ Ajustes ============================ */
 async function guardarPerfil() {
   const v = id => $(id).value;
-  const datos = { origen: v('#pfOrigen'), provincia: v('#pfProv'), combustible: v('#pfComb'),
-    consumo: n(v('#pfCons')), tarifaKm: n(v('#pfTarifa')) || 0.26, kmUrbano: n(v('#pfUrb')) };
+  const cons = leerNum(v('#pfCons')), tar = leerNum(v('#pfTarifa')), urb = leerNum(v('#pfUrb'));
+  const msg0 = $('#pfMsg');
+  if (cons == null || tar == null || urb == null) { msg0.className = 'hint bad'; msg0.textContent = 'Revisa los números: escribe solo cifras, por ejemplo 7,2.'; return; }
+  if (!v('#pfOrigen').trim()) { msg0.className = 'hint bad'; msg0.textContent = 'Pon desde dónde sales (por ejemplo, tu dirección o tu pueblo).'; return; }
+  const datos = { origen: v('#pfOrigen').trim(), provincia: v('#pfProv'), combustible: v('#pfComb'),
+    consumo: cons, tarifaKm: tar || 0.26, kmUrbano: urb };
   const msg = $('#pfMsg'); msg.className = 'hint'; msg.textContent = 'Guardando… (si has cambiado la salida, se recalculan las distancias)';
   try { guardar(await api('guardarPerfil', { perfil: datos })); toast('Perfil guardado'); }
   catch (e) { const m = $('#pfMsg'); if (m) { m.className = 'hint bad'; m.textContent = e.message; } }
 }
 async function guardarCfg() {
-  S.cfg.url = $('#cfgUrl').value.trim(); S.cfg.token = $('#cfgTok').value.trim(); S.cfg.demo = false;
+  S.cfg.url = $('#cfgUrl').value.trim().replace(/\?.*$/, ''); S.cfg.token = $('#cfgTok').value.trim(); S.cfg.demo = false;
+  if (!S.cfg.token) { const m = $('#cfgMsg'); m.className = 'hint bad'; m.textContent = 'Falta el token.'; return; }
   LS.set('cfg', S.cfg);
   const msg = $('#cfgMsg'); msg.className = 'hint'; msg.textContent = 'Probando…';
   try { const d = await api('list'); guardar(d); toast('Conectado ✓'); S.tab = 'partidos'; render(); }
-  catch (e) { msg.className = 'hint bad'; msg.textContent = 'No se pudo conectar: ' + e.message; }
+  catch (e) { msg.className = 'hint bad'; msg.textContent = e.message; }
 }
 function activarDemo(on) {
   S.cfg.demo = on; LS.set('cfg', S.cfg);
